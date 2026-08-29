@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ImageIcon, Loader2, Sparkles } from "lucide-react";
 import { DropZone } from "./DropZone";
+import { FeedbackBar } from "./FeedbackBar";
 import { Segmented } from "./Segmented";
 import { Steps } from "./Steps";
 import { ResultCard } from "./ResultCard";
 import { checkImageQuality, fileToBase64 } from "@/lib/quality";
+import { getDeviceId } from "@/lib/device";
 import { postImagem } from "@/lib/antijegue.functions";
 
 type Plataforma = "instagram" | "linkedin" | "whatsapp";
