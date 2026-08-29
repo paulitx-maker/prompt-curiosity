@@ -37,6 +37,7 @@ GRANTs: apenas `GRANT ALL ... TO service_role` nas três tabelas (sem grants a `
 
 ## Detalhes técnicos
 
+- O "buscar ou criar usuário" no servidor usa inserção idempotente: `INSERT INTO users (device_id, credits) VALUES (_device_id, 3) ON CONFLICT (device_id) DO NOTHING`, seguida de uma leitura do usuário existente.
 - O decremento é atômico via função SQL `SECURITY DEFINER` `public.charge_credit(_device_id text, _custo numeric)` que faz `UPDATE users SET credits = credits - 1, total_gasto_usd = total_gasto_usd + _custo WHERE device_id = _device_id AND credits > 0 RETURNING credits`, com `EXECUTE` apenas para `service_role`.
 - O admin client é carregado dentro do handler (`await import("@/integrations/supabase/client.server")`), nunca no escopo do módulo.
 - Se o usuário estiver sem créditos, a geração é bloqueada antes de chamar o OpenRouter e a UI mostra uma mensagem em pt-BR (sem tela de pagamento).
