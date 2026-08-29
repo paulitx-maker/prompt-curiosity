@@ -26,6 +26,7 @@ export function FotoPost() {
   const [erro, setErro] = useState<string | null>(null);
   const [post, setPost] = useState<string | null>(null);
   const [custo, setCusto] = useState<number | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null);
 
   const reset = () => {
     setStage(1);
