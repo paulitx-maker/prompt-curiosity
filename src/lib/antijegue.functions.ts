@@ -7,6 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 export interface PostImagemInput {
   imageBase64: string;
   mimeType: string;
+  deviceId: string;
   answers: {
     plataforma: "instagram" | "linkedin" | "whatsapp";
     tom: "vendas" | "informativo" | "engracado";
@@ -25,6 +26,12 @@ export interface AudioResumoInput {
   };
 }
 
+export interface FeedbackInput {
+  executionId: string;
+  nota: number;
+  oQueFaltou?: string;
+}
+
 export const postImagem = createServerFn({ method: "POST" })
   .inputValidator((input: PostImagemInput) => input)
   .handler(async ({ data }) => {
@@ -37,4 +44,11 @@ export const audioResumo = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { runAudioResumo } = await import("./antijegue.server");
     return runAudioResumo(data);
+  });
+
+export const enviarFeedback = createServerFn({ method: "POST" })
+  .inputValidator((input: FeedbackInput) => input)
+  .handler(async ({ data }) => {
+    const { runEnviarFeedback } = await import("./antijegue.server");
+    return runEnviarFeedback(data);
   });

@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ImageIcon, Loader2, Sparkles } from "lucide-react";
 import { DropZone } from "./DropZone";
+import { FeedbackBar } from "./FeedbackBar";
 import { Segmented } from "./Segmented";
 import { Steps } from "./Steps";
 import { ResultCard } from "./ResultCard";
 import { checkImageQuality, fileToBase64 } from "@/lib/quality";
+import { getDeviceId } from "@/lib/device";
 import { postImagem } from "@/lib/antijegue.functions";
 
 type Plataforma = "instagram" | "linkedin" | "whatsapp";
@@ -24,6 +26,7 @@ export function FotoPost() {
   const [erro, setErro] = useState<string | null>(null);
   const [post, setPost] = useState<string | null>(null);
   const [custo, setCusto] = useState<number | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null);
 
   const reset = () => {
     setStage(1);
@@ -35,6 +38,7 @@ export function FotoPost() {
     setErro(null);
     setPost(null);
     setCusto(null);
+    setExecutionId(null);
   };
 
   const handleFile = async (picked: File) => {
@@ -57,13 +61,19 @@ export function FotoPost() {
     try {
       const imageBase64 = await fileToBase64(file);
       const res = await run({
-        data: { imageBase64, mimeType: file.type, answers: { plataforma, tom, manterTexto } },
+        data: {
+          imageBase64,
+          mimeType: file.type,
+          deviceId: getDeviceId(),
+          answers: { plataforma, tom, manterTexto },
+        },
       });
       if (!res.ok) {
         setErro(res.message);
       } else {
         setPost(res.post);
         setCusto(res.custo_estimado);
+        setExecutionId(res.executionId ?? null);
       }
     } catch {
       setErro("Algo quebrou no caminho. Tenta de novo em instantes.");
@@ -173,6 +183,7 @@ export function FotoPost() {
           {post && (
             <>
               <ResultCard title="Post gerado" content={post} />
+              {executionId && <FeedbackBar executionId={executionId} />}
               {custo !== null && (
                 <p className="text-xs text-muted-foreground">
                   Custo estimado: ${custo.toFixed(6)} — modelo Gemini 3.1 Flash Lite
