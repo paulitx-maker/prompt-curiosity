@@ -119,12 +119,24 @@ function buildSummaryPrompt(transcript: string, answers: AudioResumoInput["answe
 }
 
 export async function runPostImagem(body: PostImagemInput) {
-  const { imageBase64, mimeType, answers } = body;
+  const { imageBase64, mimeType, deviceId, answers } = body;
 
   if (!imageBase64 || !answers?.plataforma || !answers?.tom || !answers?.manterTexto) {
     return fail(
       "missing_preflight",
       "Faltam respostas do pre-flight (plataforma, tom ou instrução de texto) ou a imagem.",
+    );
+  }
+  if (!deviceId) {
+    return fail("missing_device_id", "Não consegui identificar seu dispositivo. Recarrega a página e tenta de novo.");
+  }
+
+  const { ensureUser, logExecution, chargeCredit } = await import("./credits.server");
+  const user = await ensureUser(deviceId);
+  if (user.credits < 1) {
+    return fail(
+      "no_credits",
+      "Seus 3 créditos acabaram. Essa é a aula 1 — as próximas aulas destravam em breve.",
     );
   }
 
