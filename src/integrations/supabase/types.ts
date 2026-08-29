@@ -14,13 +14,112 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      executions: {
+        Row: {
+          created_at: string
+          custo_usd: number | null
+          id: string
+          modelo_usado: string | null
+          prompt_final: string | null
+          tema_extraido: string | null
+          tipo: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          custo_usd?: number | null
+          id?: string
+          modelo_usado?: string | null
+          prompt_final?: string | null
+          tema_extraido?: string | null
+          tipo?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          custo_usd?: number | null
+          id?: string
+          modelo_usado?: string | null
+          prompt_final?: string | null
+          tema_extraido?: string | null
+          tipo?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "executions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedbacks: {
+        Row: {
+          created_at: string
+          execution_id: string | null
+          id: string
+          nota: number | null
+          o_que_faltou: string | null
+        }
+        Insert: {
+          created_at?: string
+          execution_id?: string | null
+          id?: string
+          nota?: number | null
+          o_que_faltou?: string | null
+        }
+        Update: {
+          created_at?: string
+          execution_id?: string | null
+          id?: string
+          nota?: number | null
+          o_que_faltou?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedbacks_execution_id_fkey"
+            columns: ["execution_id"]
+            isOneToOne: false
+            referencedRelation: "executions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          credits: number
+          device_id: string
+          id: string
+          total_gasto_usd: number
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          device_id: string
+          id?: string
+          total_gasto_usd?: number
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          device_id?: string
+          id?: string
+          total_gasto_usd?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      charge_credit: {
+        Args: { _custo: number; _device_id: string }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never
