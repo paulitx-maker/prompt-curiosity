@@ -205,7 +205,32 @@ export async function runPostImagem(body: PostImagemInput) {
     ).toFixed(6),
   );
 
-  return { ok: true as const, post, custo_estimado: custoEstimado };
+  // Registro + cobrança no servidor. Falhas aqui não derrubam o post gerado.
+  const promptFinal = buildPrompt(answers);
+  const temaExtraido = post.split("\n").find((l) => l.trim())?.slice(0, 120) ?? "";
+  const executionId = await logExecution({
+    userId: user.id,
+    tipo: "foto_post",
+    promptFinal,
+    modeloUsado: "google/gemini-3.1-flash-lite",
+    custoUsd: custoEstimado,
+    temaExtraido,
+  });
+  const creditosRestantes = await chargeCredit(deviceId, custoEstimado);
+
+  return { ok: true as const, post, custo_estimado: custoEstimado, executionId, creditosRestantes };
+}
+
+export async function runEnviarFeedback(body: { executionId: string; nota: number; oQueFaltou?: string }) {
+  if (!body.executionId || typeof body.nota !== "number" || body.nota < 1 || body.nota > 5) {
+    return fail("invalid_feedback", "Feedback inválido.");
+  }
+  const { saveFeedback } = await import("./credits.server");
+  const saved = await saveFeedback(body.executionId, body.nota, body.oQueFaltou);
+  if (!saved) {
+    return fail("feedback_failed", "Não consegui salvar seu feedback. Tenta de novo.");
+  }
+  return { ok: true as const };
 }
 
 export async function runAudioResumo(body: AudioResumoInput) {
