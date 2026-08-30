@@ -27,6 +27,7 @@ export function FotoPost() {
   const [post, setPost] = useState<string | null>(null);
   const [custo, setCusto] = useState<number | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
+  const [creditos, setCreditos] = useState<number | null>(null);
 
   const reset = () => {
     setStage(1);
