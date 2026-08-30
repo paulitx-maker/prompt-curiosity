@@ -1,11 +1,8 @@
 // Acesso privilegiado a users/executions/feedbacks. As três tabelas têm RLS
 // sem policies para o navegador — TODO acesso passa por aqui, no servidor.
+import type { supabaseAdmin as SupabaseAdmin } from "@/integrations/supabase/client.server";
 
-type AdminClient = Awaited<
-  ReturnType<typeof import("@/integrations/supabase/client.server")>
->["supabaseAdmin"];
-
-async function admin(): Promise<AdminClient> {
+async function admin(): Promise<typeof SupabaseAdmin> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
@@ -17,22 +14,39 @@ export interface CreditsUser {
   total_gasto_usd: number;
 }
 
-/** Busca ou cria o usuário pelo device_id (insert idempotente). */
+const SELECT_USER = "id, device_id, credits, total_gasto_usd";
+
+/** Busca ou cria o usuário pelo device_id (insert idempotente, sem RLS). */
 export async function ensureUser(deviceId: string): Promise<CreditsUser> {
   const db = await admin();
+
   const { error: upsertError } = await db
     .from("users")
-    .upsert({ device_id: deviceId, credits: 3 }, { onConflict: "device_id", ignoreDuplicates: true });
-  if (upsertError) throw new Error(`ensureUser upsert: ${upsertError.message}`);
+    .upsert(
+      { device_id: deviceId, credits: 3 },
+      { onConflict: "device_id", ignoreDuplicates: true },
+    );
+  if (upsertError) console.error("ensureUser upsert:", upsertError.message);
 
   const { data, error } = await db
     .from("users")
-    .select("id, device_id, credits, total_gasto_usd")
+    .select(SELECT_USER)
     .eq("device_id", deviceId)
-    .single();
-  if (error || !data) throw new Error(`ensureUser select: ${error?.message ?? "user not found"}`);
-  return data as CreditsUser;
+    .maybeSingle();
+  if (data) return data as CreditsUser;
+  if (error) console.error("ensureUser select:", error.message);
+
+  // Fallback: cria explicitamente caso o upsert idempotente não tenha pegado.
+  const { data: created, error: insertError } = await db
+    .from("users")
+    .insert({ device_id: deviceId, credits: 3 })
+    .select(SELECT_USER)
+    .maybeSingle();
+  if (created) return created as CreditsUser;
+
+  throw new Error(`ensureUser: não foi possível criar o usuário (${insertError?.message ?? "sem detalhes"})`);
 }
+
 
 export interface LogExecutionInput {
   userId: string;
