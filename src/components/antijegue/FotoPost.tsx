@@ -189,6 +189,10 @@ export function FotoPost() {
                   Custo estimado: ${custo.toFixed(6)} — modelo Gemini 3.1 Flash Lite
                 </p>
               )}
+              <p className="text-[11px] text-muted-foreground/70">
+                Custo: 1 crédito
+                {creditos !== null ? ` · ${creditos} restante${creditos === 1 ? "" : "s"}` : ""}
+              </p>
               <button
                 type="button"
                 onClick={reset}
