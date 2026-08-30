@@ -40,6 +40,7 @@ export function FotoPost() {
     setPost(null);
     setCusto(null);
     setExecutionId(null);
+    setCreditos(null);
   };
 
   const handleFile = async (picked: File) => {
