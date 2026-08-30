@@ -76,6 +76,7 @@ export function FotoPost() {
         setPost(res.post);
         setCusto(res.custo_estimado);
         setExecutionId(res.executionId ?? null);
+        setCreditos(res.creditosRestantes ?? null);
       }
     } catch {
       setErro("Algo quebrou no caminho. Tenta de novo em instantes.");
