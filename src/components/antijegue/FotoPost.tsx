@@ -27,6 +27,7 @@ export function FotoPost() {
   const [post, setPost] = useState<string | null>(null);
   const [custo, setCusto] = useState<number | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
+  const [creditos, setCreditos] = useState<number | null>(null);
 
   const reset = () => {
     setStage(1);
@@ -39,6 +40,7 @@ export function FotoPost() {
     setPost(null);
     setCusto(null);
     setExecutionId(null);
+    setCreditos(null);
   };
 
   const handleFile = async (picked: File) => {
@@ -74,6 +76,7 @@ export function FotoPost() {
         setPost(res.post);
         setCusto(res.custo_estimado);
         setExecutionId(res.executionId ?? null);
+        setCreditos(res.creditosRestantes ?? null);
       }
     } catch {
       setErro("Algo quebrou no caminho. Tenta de novo em instantes.");
@@ -189,6 +192,10 @@ export function FotoPost() {
                   Custo estimado: ${custo.toFixed(6)} — modelo Gemini 3.1 Flash Lite
                 </p>
               )}
+              <p className="text-[11px] text-muted-foreground/70">
+                Custo: 1 crédito
+                {creditos !== null ? ` · ${creditos} restante${creditos === 1 ? "" : "s"}` : ""}
+              </p>
               <button
                 type="button"
                 onClick={reset}

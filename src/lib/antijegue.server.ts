@@ -221,7 +221,7 @@ export async function runPostImagem(body: PostImagemInput) {
   return { ok: true as const, post, custo_estimado: custoEstimado, executionId, creditosRestantes };
 }
 
-export async function runEnviarFeedback(body: { executionId: string; nota: number; oQueFaltou?: string }) {
+export async function runEnviarFeedback(body: { executionId: string; nota: number; oQueFaltou?: string | undefined }) {
   if (!body.executionId || typeof body.nota !== "number" || body.nota < 1 || body.nota > 5) {
     return fail("invalid_feedback", "Feedback inválido.");
   }
