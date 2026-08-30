@@ -29,7 +29,7 @@ export interface AudioResumoInput {
 export interface FeedbackInput {
   executionId: string;
   nota: number;
-  oQueFaltou?: string;
+  oQueFaltou?: string | undefined;
 }
 
 export const postImagem = createServerFn({ method: "POST" })
