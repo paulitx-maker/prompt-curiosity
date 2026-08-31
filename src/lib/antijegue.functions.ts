@@ -7,7 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 export interface PostImagemInput {
   imageBase64: string;
   mimeType: string;
-  deviceId: string;
+  deviceId?: string;
   answers: {
     plataforma: "instagram" | "linkedin" | "whatsapp";
     tom: "vendas" | "informativo" | "engracado";
