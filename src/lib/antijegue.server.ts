@@ -119,7 +119,7 @@ function buildSummaryPrompt(transcript: string, answers: AudioResumoInput["answe
 }
 
 export async function runPostImagem(body: PostImagemInput) {
-  const { imageBase64, mimeType, deviceId, answers } = body;
+  const { imageBase64, mimeType, answers } = body;
 
   if (!imageBase64 || !answers?.plataforma || !answers?.tom || !answers?.manterTexto) {
     return fail(
@@ -127,9 +127,10 @@ export async function runPostImagem(body: PostImagemInput) {
       "Faltam respostas do pre-flight (plataforma, tom ou instrução de texto) ou a imagem.",
     );
   }
-  if (!deviceId) {
-    return fail("missing_device_id", "Não consegui identificar seu dispositivo. Recarrega a página e tenta de novo.");
-  }
+
+  console.log("deviceId received:", body.deviceId ?? null);
+  // Sem deviceId o fluxo NÃO falha: geramos um fallback no servidor e seguimos.
+  const deviceId = body.deviceId && body.deviceId.trim() ? body.deviceId : `server-${crypto.randomUUID()}`;
 
   const { ensureUser, logExecution, chargeCredit } = await import("./credits.server");
   const user = await ensureUser(deviceId);
