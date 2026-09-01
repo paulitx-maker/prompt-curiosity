@@ -1,8 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-
-// Caso A: Imagem -> Post, com pre-flight de qualidade + prompt dinâmico.
-// Regra de ouro: NUNCA chama o OpenRouter sem as respostas do pre-flight,
-// e revalida a qualidade da imagem no servidor (o client pode ser burlado).
+import { z } from "zod";
 
 export interface PostImagemInput {
   imageBase64: string;
@@ -33,21 +30,21 @@ export interface FeedbackInput {
 }
 
 export const postImagem = createServerFn({ method: "POST" })
-  .inputValidator((input: PostImagemInput) => input)
+  .validator((input: unknown) => input as PostImagemInput)
   .handler(async ({ data }) => {
     const { runPostImagem } = await import("./antijegue.server");
     return runPostImagem(data);
   });
 
 export const audioResumo = createServerFn({ method: "POST" })
-  .inputValidator((input: AudioResumoInput) => input)
+  .validator((input: unknown) => input as AudioResumoInput)
   .handler(async ({ data }) => {
     const { runAudioResumo } = await import("./antijegue.server");
     return runAudioResumo(data);
   });
 
 export const enviarFeedback = createServerFn({ method: "POST" })
-  .inputValidator((input: FeedbackInput) => input)
+  .validator((input: unknown) => input as FeedbackInput)
   .handler(async ({ data }) => {
     const { runEnviarFeedback } = await import("./antijegue.server");
     return runEnviarFeedback(data);

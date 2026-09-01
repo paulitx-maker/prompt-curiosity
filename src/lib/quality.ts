@@ -4,6 +4,20 @@ export type QualityResult =
   | { status: "warn"; message: string };
 
 export async function checkImageQuality(file: File): Promise<QualityResult> {
+  // BLOQUEIO HEIC - iPhone
+  const isHeic = file.type === 'image/heic' ||
+                 file.type === 'image/heif' ||
+                 file.name.toLowerCase().endsWith('.heic') ||
+                 file.name.toLowerCase().endsWith('.heif');
+
+  if (isHeic) {
+    console.log('[HEIC_BLOCKED]', file.name);
+    return {
+      status: "block",
+      message: "Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Vai em Fotos > Exportar como JPEG e tenta de novo? Isso nos ajuda a saber quanta gente usa iPhone aqui.",
+    };
+  }
+
   if (file.size < 40 * 1024) {
     return {
       status: "block",
@@ -52,7 +66,7 @@ export async function checkAudioQuality(
 ): Promise<QualityResult & { durationSeconds?: number }> {
   const duration = await readAudioDuration(file);
 
-  if (!duration || !Number.isFinite(duration) || duration < 2) {
+  if (!duration ||!Number.isFinite(duration) || duration < 2) {
     return { status: "block", message: "Áudio vazio, corrompido ou tempo real não detectado." };
   }
 
@@ -109,7 +123,7 @@ export function fileToBase64(file: File): Promise<string> {
     const reader = new FileReader();
     reader.onload = () => {
       const result = String(reader.result);
-      resolve(result.includes(",") ? result.split(",")[1]! : result);
+      resolve(result.includes(",")? result.split(",")[1]! : result);
     };
     reader.onerror = () => reject(new Error("Falha ao ler o arquivo."));
     reader.readAsDataURL(file);
