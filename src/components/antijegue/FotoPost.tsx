@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ImageIcon, Loader2, Sparkles } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
 import { DropZone } from "./DropZone";
 import { FeedbackBar } from "./FeedbackBar";
 import { Segmented } from "./Segmented";
@@ -14,11 +15,22 @@ type Plataforma = "instagram" | "linkedin" | "whatsapp";
 type Tom = "vendas" | "informativo" | "engracado";
 type ManterTexto = "manter" | "reescrever";
 
+function getSupabase() {
+  if (typeof window === "undefined") return null;
+  const env: any = (import.meta as any).env || {};
+  const url = env.VITE_SUPABASE_URL || env.VITE_PACK_SUPABASE_URL;
+  const key = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_PACK_SUPABASE_ANON_KEY;
+  if (!url ||!key) return null;
+  return createClient(url, key, { auth: { persistSession: false } });
+}
+
 export function FotoPost() {
   const run = useServerFn(postImagem);
   const [stage, setStage] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
   const [blocked, setBlocked] = useState<string | null>(null);
+  const [heicFeedback, setHeicFeedback] = useState("");
+  const [heicEnviado, setHeicEnviado] = useState(false);
   const [plataforma, setPlataforma] = useState<Plataforma | null>(null);
   const [tom, setTom] = useState<Tom | null>(null);
   const [manterTexto, setManterTexto] = useState<ManterTexto | null>(null);
@@ -33,6 +45,8 @@ export function FotoPost() {
     setStage(1);
     setFile(null);
     setBlocked(null);
+    setHeicFeedback("");
+    setHeicEnviado(false);
     setPlataforma(null);
     setTom(null);
     setManterTexto(null);
@@ -45,6 +59,32 @@ export function FotoPost() {
 
   const handleFile = async (picked: File) => {
     setBlocked(null);
+    setHeicFeedback("");
+    setHeicEnviado(false);
+
+    const isHeic = picked.type === 'image/heic' || picked.type === 'image/heif' || picked.name.toLowerCase().endsWith('.heic') || picked.name.toLowerCase().endsWith('.heif');
+    if (isHeic) {
+      const msg = "Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo? Isso nos ajuda a saber quanta gente usa iPhone aqui.";
+      setBlocked(msg);
+      setFile(null);
+      try {
+        const db = getSupabase();
+        const deviceId = getDeviceId();
+        if (db) {
+          await db.from("executions").insert({
+            tipo: "blocked_heic",
+            device_id: deviceId,
+            modelo_usado: "heic_block",
+            custo_estimado: 0,
+            status: "blocked",
+            metadata: { fileName: picked.name, fileType: picked.type }
+          } as any);
+          console.log("[leave] blocked_heic", deviceId);
+        }
+      } catch {}
+      return;
+    }
+
     const result = await checkImageQuality(picked);
     if (result.status === "block") {
       setBlocked(result.message);
@@ -55,8 +95,27 @@ export function FotoPost() {
     setStage(2);
   };
 
+  const enviarHeicFeedback = async () => {
+    if (!heicFeedback.trim()) return;
+    try {
+      const db = getSupabase();
+      const deviceId = getDeviceId();
+      if (db) {
+        await db.from("executions").insert({
+          tipo: "blocked_heic_feedback",
+          device_id: deviceId,
+          modelo_usado: "heic_feedback",
+          custo_estimado: 0,
+          status: "feedback",
+          metadata: { feedback: heicFeedback.trim() }
+        } as any);
+      }
+      setHeicEnviado(true);
+    } catch {}
+  };
+
   const submit = async () => {
-    if (!file || !plataforma || !tom || !manterTexto) return;
+    if (!file ||!plataforma ||!tom ||!manterTexto) return;
     setLoading(true);
     setErro(null);
     setStage(3);
@@ -75,8 +134,8 @@ export function FotoPost() {
       } else {
         setPost(res.post);
         setCusto(res.custo_estimado);
-        setExecutionId(res.executionId ?? null);
-        setCreditos(res.creditosRestantes ?? null);
+        setExecutionId(res.executionId?? null);
+        setCreditos(res.creditosRestantes?? null);
       }
     } catch {
       setErro("Algo quebrou no caminho. Tenta de novo em instantes.");
@@ -104,13 +163,35 @@ export function FotoPost() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 {blocked}
               </p>
-              <button
-                type="button"
-                onClick={() => setBlocked(null)}
-                className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive"
-              >
-                Tentar outra imagem
-              </button>
+              {!heicEnviado? (
+                <div className="space-y-2">
+                  <textarea
+                    value={heicFeedback}
+                    onChange={e => setHeicFeedback(e.target.value)}
+                    placeholder="Consegue me dizer o que aconteceu? Ex: tirei foto direto da câmera, não consegui converter..."
+                    className="w-full min-h-[70px] rounded-xl border bg-background p-3 text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={enviarHeicFeedback}
+                      disabled={!heicFeedback.trim()}
+                      className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
+                    >
+                      Enviar feedback
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBlocked(null)}
+                      className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive"
+                    >
+                      Tentar outra imagem
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-green-400">Obrigado! Isso nos ajuda muito. Tenta agora com JPEG.</p>
+              )}
             </div>
           )}
         </div>
@@ -153,7 +234,7 @@ export function FotoPost() {
           />
           <button
             type="button"
-            disabled={!plataforma || !tom || !manterTexto}
+            disabled={!plataforma ||!tom ||!manterTexto}
             onClick={submit}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-neon px-4 py-3.5 text-sm font-semibold text-primary-foreground glow-neon transition-opacity disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
           >
@@ -187,14 +268,14 @@ export function FotoPost() {
             <>
               <ResultCard title="Post gerado" content={post} />
               {executionId && <FeedbackBar executionId={executionId} />}
-              {custo !== null && (
+              {custo!== null && (
                 <p className="text-xs text-muted-foreground">
                   Custo estimado: ${custo.toFixed(6)} — modelo Gemini 3.1 Flash Lite
                 </p>
               )}
               <p className="text-[11px] text-muted-foreground/70">
                 Custo: 1 crédito
-                {creditos !== null ? ` · ${creditos} restante${creditos === 1 ? "" : "s"}` : ""}
+                {creditos!== null? ` · ${creditos} restante${creditos === 1? "" : "s"}` : ""}
               </p>
               <button
                 type="button"

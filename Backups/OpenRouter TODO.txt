@@ -1,0 +1,43 @@
+OpenRouter TODO
+
+Boa, essa email do OpenRouter é importante. É exatamente o que faltou proteger quando sua chave deu `User not found` hoje.
+
+Você hoje tá rodando com 1 chave só, sem nenhum dos 5 controles. Isso te deixou exposto:
+
+*O que você NÃO tem hoje e precisa ter:*
+
+*1. FLOOR (chão de saldo)*
+Você ficou sem saldo e nem percebeu. O OpenRouter quando fica abaixo de $10 começa a fazer checagem extra e expira cache, fica mais lento.
+Ação: No dashboard > Billing > Auto top-up, seta $20 de floor.
+
+*2. CEILING (teto por chave) - CRÍTICO PRA VOCÊ*
+Você usa a mesma chave no dev (localhost) e na produção (Lovable). Se um loop infinito no seu `antijegue.server.ts` gastar tudo, derruba tudo.
+Ação: Cria 2 chaves:
+- `orquestrador-dev` com limite $5
+- `orquestrador-prod` com limite $20
+Se estourar, retorna 402 mas não zera sua conta.
+
+*3. PROVIDER ELIGIBILITY - VOCÊ PRECISA IMPLEMENTAR AGORA*
+Hoje você chama:
+`model: "google/gemini-2.5-flash-lite"`
+Sem dizer que não quer fallback. O default do OpenRouter é tentar outro provider mais caro pra não falhar. Ou seja, você pode pedir um modelo barato e ele te entregar um caro sem avisar.
+Ação no seu código `antijegue.server.ts`, adiciona:
+provider: {
+  require_parameters: true,
+  data_collection: "deny",
+  allow_fallbacks: false
+}
+*4. MODEL FALLBACK*
+Se o Gemini 2.5 falhar (como hoje falhou o 3.1), você quer que falhe ou que tente outro?
+Pra MVP, melhor falhar explícito do que cobrar 10x sem avisar. Por isso `allow_fallbacks: false` acima.
+
+*5. FAILURE POLICY*
+Você lida com dados de cliente (áudios, fotos). Sem `data_collection: "deny"`, seu prompt pode ir pra provider que treina em cima.
+Com o controle do item 3 você já resolve.
+
+*Resumo prático pra fazer em 5 min:*
+1. OpenRouter > Keys > cria `dev` e `prod` com limites
+2. Billing > Auto top-up $20
+3. No código, adiciona o objeto `provider` que te mandei
+
+Isso te protege do que quebrou hoje: se a chave dev morrer, a prod continua. E você nunca mais vai pagar modelo caro sem querer.
