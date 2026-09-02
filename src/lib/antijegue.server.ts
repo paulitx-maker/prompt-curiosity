@@ -116,13 +116,15 @@ export async function runPostImagem(body: PostImagemInput) {
   const executionId = await logExecution({
     userId: user.id,
     deviceId,
-    fileName: body.fileName?? null as any,
+    fileName: body.fileName?? null ,
     tipo: "foto_post",
     promptFinal,
     modeloUsado: "google/gemini-2.5-flash-lite",
     custoUsd: custoEstimado,
     temaExtraido,
-  });
+    postGerado: post, // <--- SE NÃO TIVER ISSO, NUNCA VAI SALVAR
+  podeUsarPublico: false,
+});
   const creditosRestantes = await chargeCredit(deviceId, custoEstimado);
   return { ok: true as const, post, custo_estimado: custoEstimado, executionId, creditosRestantes };
 }
