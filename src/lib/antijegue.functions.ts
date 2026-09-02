@@ -1,10 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
 
 export interface PostImagemInput {
   imageBase64: string;
   mimeType: string;
   deviceId?: string;
+  fileName?: string;
   answers: {
     plataforma: "instagram" | "linkedin" | "whatsapp";
     tom: "vendas" | "informativo" | "engracado";
@@ -16,6 +16,8 @@ export interface AudioResumoInput {
   audioBase64: string;
   mimeType: string;
   durationSeconds: number;
+  deviceId?: string;
+  fileName?: string;
   answers: {
     numeroPessoas: "1" | "2" | "3_ou_mais";
     ruido: "limpo" | "moderado" | "muito_ruido";
@@ -25,8 +27,10 @@ export interface AudioResumoInput {
 
 export interface FeedbackInput {
   executionId: string;
+  deviceId: string;
   nota: number;
   oQueFaltou?: string | undefined;
+  podeUsarPublico?: boolean;
 }
 
 export const postImagem = createServerFn({ method: "POST" })
