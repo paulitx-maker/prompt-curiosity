@@ -20,7 +20,7 @@ function getSupabase() {
   const env: any = (import.meta as any).env || {};
   const url = env.VITE_SUPABASE_URL || env.VITE_PACK_SUPABASE_URL;
   const key = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_PACK_SUPABASE_ANON_KEY;
-  if (!url ||!key) return null;
+  if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -42,248 +42,76 @@ export function FotoPost() {
   const [creditos, setCreditos] = useState<number | null>(null);
 
   const reset = () => {
-    setStage(1);
-    setFile(null);
-    setBlocked(null);
-    setHeicFeedback("");
-    setHeicEnviado(false);
-    setPlataforma(null);
-    setTom(null);
-    setManterTexto(null);
-    setErro(null);
-    setPost(null);
-    setCusto(null);
-    setExecutionId(null);
-    setCreditos(null);
+    setStage(1); setFile(null); setBlocked(null); setHeicFeedback(""); setHeicEnviado(false);
+    setPlataforma(null); setTom(null); setManterTexto(null); setErro(null);
+    setPost(null); setCusto(null); setExecutionId(null); setCreditos(null);
   };
 
   const handleFile = async (picked: File) => {
-    setBlocked(null);
-    setHeicFeedback("");
-    setHeicEnviado(false);
-
+    setBlocked(null); setHeicFeedback(""); setHeicEnviado(false);
     const isHeic = picked.type === 'image/heic' || picked.type === 'image/heif' || picked.name.toLowerCase().endsWith('.heic') || picked.name.toLowerCase().endsWith('.heif');
     if (isHeic) {
-      const msg = "Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo? Isso nos ajuda a saber quanta gente usa iPhone aqui.";
-      setBlocked(msg);
-      setFile(null);
-      try {
-        const db = getSupabase();
-        const deviceId = getDeviceId();
-        if (db) {
-          await db.from("executions").insert({
-            tipo: "blocked_heic",
-            device_id: deviceId,
-            modelo_usado: "heic_block",
-            custo_estimado: 0,
-            status: "blocked",
-            metadata: { fileName: picked.name, fileType: picked.type }
-          } as any);
-          console.log("[leave] blocked_heic", deviceId);
-        }
-      } catch {}
-      return;
+      setBlocked("Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo?");
+      setFile(null); return;
     }
-
     const result = await checkImageQuality(picked);
-    if (result.status === "block") {
-      setBlocked(result.message);
-      setFile(null);
-      return;
-    }
-    setFile(picked);
-    setStage(2);
-  };
-
-  const enviarHeicFeedback = async () => {
-    if (!heicFeedback.trim()) return;
-    try {
-      const db = getSupabase();
-      const deviceId = getDeviceId();
-      if (db) {
-        await db.from("executions").insert({
-          tipo: "blocked_heic_feedback",
-          device_id: deviceId,
-          modelo_usado: "heic_feedback",
-          custo_estimado: 0,
-          status: "feedback",
-          metadata: { feedback: heicFeedback.trim() }
-        } as any);
-      }
-      setHeicEnviado(true);
-    } catch {}
+    if (result.status === "block") { setBlocked(result.message); setFile(null); return; }
+    setFile(picked); setStage(2);
   };
 
   const submit = async () => {
-    if (!file ||!plataforma ||!tom ||!manterTexto) return;
-    setLoading(true);
-    setErro(null);
-    setStage(3);
+    if (!file || !plataforma || !tom || !manterTexto) return;
+    setLoading(true); setErro(null); setStage(3);
     try {
-      const imageBase64 = await fileToBase64(file);
+      const b64 = await fileToBase64(file);
       const res = await run({
         data: {
-          imageBase64,
+          imageBase64: b64,
           mimeType: file.type,
+          fileName: file.name,
           deviceId: getDeviceId(),
           answers: { plataforma, tom, manterTexto },
         },
       });
-      if (!res.ok) {
-        setErro(res.message);
-      } else {
+      if (!res.ok) setErro(res.message);
+      else {
         setPost(res.post);
         setCusto(res.custo_estimado);
-        setExecutionId(res.executionId?? null);
-        setCreditos(res.creditosRestantes?? null);
+        setExecutionId(res.executionId ?? null);
+        setCreditos(res.creditosRestantes ?? null);
       }
-    } catch {
-      setErro("Algo quebrou no caminho. Tenta de novo em instantes.");
-    } finally {
-      setLoading(false);
-    }
+    } catch { setErro("Algo quebrou no caminho. Tenta de novo."); }
+    finally { setLoading(false); }
   };
 
   return (
     <div className="space-y-6">
       <Steps current={stage} />
-
       {stage === 1 && (
         <div className="space-y-4">
-          <DropZone
-            accept="image/*"
-            icon={<ImageIcon className="h-6 w-6" />}
-            title="Arraste uma foto ou toque para escolher"
-            hint="JPG ou PNG, mínimo 500x500px e 40KB"
-            onFile={handleFile}
-          />
-          {blocked && (
-            <div className="space-y-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-4">
-              <p className="flex gap-2 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {blocked}
-              </p>
-              {!heicEnviado? (
-                <div className="space-y-2">
-                  <textarea
-                    value={heicFeedback}
-                    onChange={e => setHeicFeedback(e.target.value)}
-                    placeholder="Consegue me dizer o que aconteceu? Ex: tirei foto direto da câmera, não consegui converter..."
-                    className="w-full min-h-[70px] rounded-xl border bg-background p-3 text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={enviarHeicFeedback}
-                      disabled={!heicFeedback.trim()}
-                      className="rounded-lg bg-destructive px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40"
-                    >
-                      Enviar feedback
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBlocked(null)}
-                      className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive"
-                    >
-                      Tentar outra imagem
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-green-400">Obrigado! Isso nos ajuda muito. Tenta agora com JPEG.</p>
-              )}
-            </div>
-          )}
+          <DropZone accept="image/*" icon={<ImageIcon className="h-6 w-6" />} title="Arraste uma foto ou toque para escolher" hint="JPG ou PNG, mínimo 500x500px e 40KB" onFile={handleFile} />
+          {blocked && <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive flex gap-2"><AlertTriangle className="h-4 w-4" />{blocked}</div>}
         </div>
       )}
-
       {stage === 2 && (
         <div className="space-y-6 rounded-2xl border border-border bg-surface p-5">
-          <p className="text-xs text-muted-foreground">
-            Você não escreve o prompt. Responde 3 perguntas — é isso que separa um resultado bom de
-            um prompt de jegue.
-          </p>
-          <Segmented<Plataforma>
-            label="Qual a plataforma?"
-            value={plataforma}
-            onChange={setPlataforma}
-            options={[
-              { value: "instagram", label: "Instagram" },
-              { value: "linkedin", label: "LinkedIn" },
-              { value: "whatsapp", label: "WhatsApp" },
-            ]}
-          />
-          <Segmented<Tom>
-            label="Qual o tom?"
-            value={tom}
-            onChange={setTom}
-            options={[
-              { value: "vendas", label: "Vendas" },
-              { value: "informativo", label: "Informativo" },
-              { value: "engracado", label: "Engraçado" },
-            ]}
-          />
-          <Segmented<ManterTexto>
-            label="O texto da imagem deve ser mantido ou reescrito?"
-            value={manterTexto}
-            onChange={setManterTexto}
-            options={[
-              { value: "manter", label: "Manter" },
-              { value: "reescrever", label: "Reescrever" },
-            ]}
-          />
-          <button
-            type="button"
-            disabled={!plataforma ||!tom ||!manterTexto}
-            onClick={submit}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-neon px-4 py-3.5 text-sm font-semibold text-primary-foreground glow-neon transition-opacity disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-          >
-            <Sparkles className="h-4 w-4" />
-            Gerar post
-          </button>
+          <Segmented<Plataforma> label="Qual a plataforma?" value={plataforma} onChange={setPlataforma} options={[{ value: "instagram", label: "Instagram" }, { value: "linkedin", label: "LinkedIn" }, { value: "whatsapp", label: "WhatsApp" }]} />
+          <Segmented<Tom> label="Qual o tom?" value={tom} onChange={setTom} options={[{ value: "vendas", label: "Vendas" }, { value: "informativo", label: "Informativo" }, { value: "engracado", label: "Engraçado" }]} />
+          <Segmented<ManterTexto> label="O texto da imagem deve ser mantido ou reescrito?" value={manterTexto} onChange={setManterTexto} options={[{ value: "manter", label: "Manter" }, { value: "reescrever", label: "Reescrever" }]} />
+          <button type="button" disabled={!plataforma || !tom || !manterTexto} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-neon px-4 py-3.5 text-sm font-semibold text-primary-foreground"><Sparkles className="h-4 w-4" />Gerar post</button>
         </div>
       )}
-
       {stage === 3 && (
         <div className="space-y-4">
-          {loading && (
-            <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-6 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              Gerando seu post...
-            </div>
-          )}
-          {erro && (
-            <div className="space-y-3 rounded-2xl border border-destructive/40 bg-destructive/10 p-4">
-              <p className="text-sm text-destructive">{erro}</p>
-              <button
-                type="button"
-                onClick={reset}
-                className="rounded-lg border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive"
-              >
-                Tentar de novo
-              </button>
-            </div>
-          )}
+          {loading && <div className="flex items-center gap-3 rounded-2xl border bg-surface p-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin text-primary" />Gerando seu post...</div>}
+          {erro && <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">{erro}<button type="button" onClick={reset} className="ml-2 underline">Tentar de novo</button></div>}
           {post && (
             <>
               <ResultCard title="Post gerado" content={post} />
               {executionId && <FeedbackBar executionId={executionId} />}
-              {custo!== null && (
-                <p className="text-xs text-muted-foreground">
-                  Custo estimado: ${custo.toFixed(6)} — modelo Gemini 3.1 Flash Lite
-                </p>
-              )}
-              <p className="text-[11px] text-muted-foreground/70">
-                Custo: 1 crédito
-                {creditos!== null? ` · ${creditos} restante${creditos === 1? "" : "s"}` : ""}
-              </p>
-              <button
-                type="button"
-                onClick={reset}
-                className="w-full rounded-xl border border-border bg-secondary px-4 py-3 text-sm font-medium text-foreground"
-              >
-                Começar de novo
-              </button>
+              {custo !== null && <p className="text-xs text-muted-foreground">Custo estimado: ${custo.toFixed(6)} — Gemini 2.5 Flash Lite</p>}
+              <p className="text-[11px] text-muted-foreground/70">Custo: 1 crédito{creditos !== null ? ` · ${creditos} restantes` : ""}</p>
+              <button type="button" onClick={reset} className="w-full rounded-xl border bg-secondary px-4 py-3 text-sm">Começar de novo</button>
             </>
           )}
         </div>
