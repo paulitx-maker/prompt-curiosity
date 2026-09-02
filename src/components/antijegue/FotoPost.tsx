@@ -29,8 +29,6 @@ export function FotoPost() {
   const [stage, setStage] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
   const [blocked, setBlocked] = useState<string | null>(null);
-  const [heicFeedback, setHeicFeedback] = useState("");
-  const [heicEnviado, setHeicEnviado] = useState(false);
   const [plataforma, setPlataforma] = useState<Plataforma | null>(null);
   const [tom, setTom] = useState<Tom | null>(null);
   const [manterTexto, setManterTexto] = useState<ManterTexto | null>(null);
@@ -42,21 +40,43 @@ export function FotoPost() {
   const [creditos, setCreditos] = useState<number | null>(null);
 
   const reset = () => {
-    setStage(1); setFile(null); setBlocked(null); setHeicFeedback(""); setHeicEnviado(false);
+    setStage(1); setFile(null); setBlocked(null);
     setPlataforma(null); setTom(null); setManterTexto(null); setErro(null);
     setPost(null); setCusto(null); setExecutionId(null); setCreditos(null);
   };
 
   const handleFile = async (picked: File) => {
-    setBlocked(null); setHeicFeedback(""); setHeicEnviado(false);
+    setBlocked(null);
+    const sizeMb = picked.size / 1024 / 1024;
     const isHeic = picked.type === 'image/heic' || picked.type === 'image/heif' || picked.name.toLowerCase().endsWith('.heic') || picked.name.toLowerCase().endsWith('.heif');
-    if (isHeic) {
-      setBlocked("Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo?");
-      setFile(null); return;
+
+    // MONITORAMENTO - não bloqueia por tamanho, só loga
+    if (isHeic || sizeMb > 5) {
+      try {
+        const db = getSupabase();
+        if (db) {
+          await db.from("monitor_arquivos").insert({
+            device_id: getDeviceId(),
+            file_name: picked.name,
+            file_type: picked.type || 'heic',
+            file_size_mb: Number(sizeMb.toFixed(2)),
+            motivo: isHeic ? 'heic_detectado' : 'maior_que_5mb'
+          });
+        }
+      } catch {}
     }
+
+    if (isHeic) {
+      setBlocked("Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo? (Já logamos pra monitorar)");
+      setFile(null); 
+      return;
+    }
+
     const result = await checkImageQuality(picked);
     if (result.status === "block") { setBlocked(result.message); setFile(null); return; }
-    setFile(picked); setStage(2);
+    
+    setFile(picked); 
+    setStage(2);
   };
 
   const submit = async () => {
@@ -64,7 +84,7 @@ export function FotoPost() {
     setLoading(true); setErro(null); setStage(3);
     try {
       const b64 = await fileToBase64(file);
-      const res = await run({
+      const res: any = await run({
         data: {
           imageBase64: b64,
           mimeType: file.type,
@@ -75,10 +95,11 @@ export function FotoPost() {
       });
       if (!res.ok) setErro(res.message);
       else {
-        setPost(res.post);
-        setCusto(res.custo_estimado);
-        setExecutionId(res.executionId ?? null);
-        setCreditos(res.creditosRestantes ?? null);
+        // FIX SCHEMA REAL: aceita tanto nomes antigos quanto novos
+        setPost(res.post || res.post_gerado || null);
+        setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
+        setExecutionId(res.executionId ?? res.id ?? null);
+        setCreditos(res.creditosRestantes ?? res.credits ?? null);
       }
     } catch { setErro("Algo quebrou no caminho. Tenta de novo."); }
     finally { setLoading(false); }

@@ -21,11 +21,20 @@ function getSupabase() {
 function getDeviceId() {
   if (typeof window === "undefined") return "server";
   let id = localStorage.getItem("device_id");
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem("device_id", id);
-  }
+  if (!id) { id = crypto.randomUUID(); localStorage.setItem("device_id", id); }
   return id;
+}
+
+async function logIntencao(produto: Produto, etapa: string) {
+  const db = getSupabase();
+  if(!db) return;
+  await db.from("intencoes_compra").insert({
+    device_id: getDeviceId(),
+    produto_id: produto.id,
+    categoria: produto.categoria,
+    etapa: etapa, // 'visualizou', 'copiou', 'avaliou'
+    created_at: new Date().toISOString()
+  });
 }
 
 function PackPage() {
@@ -57,6 +66,7 @@ function PackPage() {
   const copiar = async (p: Produto) => {
     await navigator.clipboard.writeText(p.prompt || "");
     toast.success("Prompt copiado!");
+    await logIntencao(p, 'copiou');
     setTimeout(() => setAvaliando(p), 500);
   };
 
@@ -66,7 +76,7 @@ function PackPage() {
     <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pb-16 pt-10">
       <header className="space-y-3 text-center">
         <h1 className="text-3xl font-bold">Brazilian Prompt Pack</h1>
-        <p className="text-sm text-muted-foreground">Copie e cole no ChatGPT, Claude, Gemini - R$4,90 / Produtividade</p>
+        <p className="text-sm text-muted-foreground">Copie e cole no ChatGPT, Claude, Gemini - R$4,90</p>
         {produtos.length === 0 && <p className="text-xs text-orange-400 p-3 border rounded-xl">Nenhum produto com ativo=true no Supabase.</p>}
       </header>
       <div className="mt-8 flex flex-wrap gap-2">
@@ -104,20 +114,17 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
     setEnviando(true);
     const db = getSupabase();
     const deviceId = getDeviceId();
-
-    // Seu schema atual: device_id + nota + o_que_faltou
     const { error } = await db!.from("feedbacks").insert({
       device_id: deviceId,
+      execution_id: null, // pack não tem execution
       nota,
       o_que_faltou: texto.trim() || null,
     });
-
     if (error) {
-      console.error("feedback erro", error.message);
-      toast.error("Erro ao salvar: " + error.message);
+      toast.error("Erro: " + error.message);
     } else {
-      toast.success("Obrigado pelo feedback!");
-      console.log("[feedback] salvo", { nota, texto });
+      await logIntencao(produto, `avaliou_nota_${nota}`);
+      toast.success("Obrigado!");
       onClose();
     }
     setEnviando(false);
@@ -130,7 +137,6 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
           <h3 className="font-bold text-sm">Gostou de {produto.titulo}?</h3>
           <button onClick={onClose}><X className="h-5 w-5" /></button>
         </div>
-
         <div className="flex justify-center gap-1.5">
           {[1,2,3,4,5].map(n => (
             <button key={n} onClick={() => setNota(n)}>
@@ -138,24 +144,13 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
             </button>
           ))}
         </div>
-
         {nota > 0 && nota <= 3 && (
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground">O que faltou? (opcional)</label>
-            <textarea
-              value={texto}
-              onChange={e => setTexto(e.target.value)}
-              placeholder="Me diz o que podemos melhorar..."
-              className="w-full rounded-xl border bg-background p-3 text-sm min-h-[80px]"
-            />
+            <label className="text-xs text-muted-foreground">O que faltou?</label>
+            <textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder="Me diz o que podemos melhorar..." className="w-full rounded-xl border bg-background p-3 text-sm min-h-[80px]" />
           </div>
         )}
-
-        <button
-          disabled={nota===0 || enviando}
-          onClick={enviar}
-          className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-40"
-        >
+        <button disabled={nota===0 || enviando} onClick={enviar} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
           {enviando? "Enviando..." : "Enviar avaliação"}
         </button>
       </div>

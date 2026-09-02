@@ -22,13 +22,12 @@ export async function ensureUser(deviceId: string) {
   return created;
 }
 
-// FIX: usa colunas REAIS da sua tabela executions
 export async function logExecution(data: any) {
   const supa = supabaseAdmin();
   const payload = {
     device_id: data.deviceId,
     user_id: data.userId || null,
-    tipo: data.tipo, // foto_post ou audio_resumo
+    tipo: data.tipo,
     file_name: data.fileName ?? null,
     modelo_usado: data.modeloUsado,
     custo_usd: data.custoUsd ?? 0,
@@ -72,15 +71,12 @@ export async function updateConsent(executionId: string, podeUsar: boolean) {
   return true;
 }
 
-// ---- RUNS que o functions.ts precisa ----
 export async function runPostImagem(data: any) {
   const deviceId = data.deviceId;
   if (!deviceId) throw new Error("deviceId missing");
   const user = await ensureUser(deviceId);
   if ((user.credits ?? 0) <= 0) throw new Error("Sem créditos");
 
-  // --- chama seu provider (mantém sua lógica de IA aqui) ---
-  // exemplo Gemini - troca pelo seu código atual
   const modelo = "google/gemini-2.5-flash-lite";
   const post = `Post ${data.answers.plataforma} tom ${data.answers.tom} - tema extraído da ${data.fileName}`;
   const custo = 0.0006;
@@ -93,12 +89,13 @@ export async function runPostImagem(data: any) {
     modeloUsado: modelo,
     custoUsd: custo,
     temaExtraido: data.answers.plataforma,
-    prompt_final: JSON.stringify(data.answers),
+    promptFinal: JSON.stringify(data.answers),
     postGerado: post,
   });
 
-  await chargeCredit(deviceId);
-  return { ok: true, executionId: execId, post };
+  const remaining = await chargeCredit(deviceId);
+  // compatível com seu FotoPost.tsx original
+  return { ok: true, executionId: execId, post, post_gerado: post, custo_estimado: custo, custo_usd: custo, creditosRestantes: remaining, credits: remaining };
 }
 
 export async function runAudioResumo(data: any) {
@@ -107,13 +104,13 @@ export async function runAudioResumo(data: any) {
   const user = await ensureUser(deviceId);
   if ((user.credits ?? 0) <= 0) throw new Error("Sem créditos");
 
-  // FIX 400: normaliza mime
   let mime = data.mimeType || "audio/mp4";
   if (mime.includes("m4a") || mime.includes("x-m4a")) mime = "audio/mp4";
 
   const modelo = "google/gemini-2.5-flash-lite";
   const transcricao = `Transcrição simulada de ${data.fileName} (${mime})`;
   const resumo = data.answers.resultado === "transcricao_literal" ? transcricao : `Resumo ${data.answers.resultado} de ${data.fileName}`;
+  const custo = 0.0008;
 
   const execId = await logExecution({
     deviceId,
@@ -121,15 +118,15 @@ export async function runAudioResumo(data: any) {
     fileName: data.fileName,
     tipo: "audio_resumo",
     modeloUsado: modelo,
-    custoUsd: 0.0008,
+    custoUsd: custo,
     temaExtraido: data.answers.numeroPessoas,
-    prompt_final: JSON.stringify(data.answers),
+    promptFinal: JSON.stringify(data.answers),
     transcricao,
     resumo,
   });
 
-  await chargeCredit(deviceId);
-  return { ok: true, executionId: execId, transcricao, resumo };
+  const remaining = await chargeCredit(deviceId);
+  return { ok: true, executionId: execId, transcricao, resumo, custo_estimado: custo, custo_usd: custo, creditosRestantes: remaining };
 }
 
 export async function runEnviarFeedback(data: any) {
