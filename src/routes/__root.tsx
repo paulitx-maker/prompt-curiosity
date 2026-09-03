@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ClientInit } from "@/components/ClientInit";
 import { CreditsBadge } from "@/components/CreditsBadge";
 import appCss from "../styles.css?url";
+import { BottomNav } from '@/components/BottomNav'
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -45,6 +46,7 @@ function RootComponent() {
         {deviceId && <CreditsBadge deviceId={deviceId} />}
       </header>
       <Outlet />
+      <BottomNav />
       <Toaster />
     </QueryClientProvider>
   );
