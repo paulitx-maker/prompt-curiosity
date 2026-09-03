@@ -1,8 +1,15 @@
+import { createClient } from '@supabase/supabase-js';
 import type {
   AdminExecutionRow,
   AdminFeedbackRow,
   AdminResult,
 } from "./admin.functions";
+
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  return createClient(url, key);
+}
 
 export async function runAdminDashboard(adminKey: string): Promise<AdminResult> {
   const expected = process.env["ADMIN_ACCESS_KEY"];
@@ -13,7 +20,7 @@ export async function runAdminDashboard(adminKey: string): Promise<AdminResult> 
     return { ok: false, message: "Chave de acesso inválida." };
   }
 
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const supabaseAdmin = getSupabaseAdmin();
 
   const [usersRes, execCountRes, execRowsRes, feedbackRes] = await Promise.all([
     supabaseAdmin.from("users").select("id, device_id, credits"),
@@ -32,13 +39,13 @@ export async function runAdminDashboard(adminKey: string): Promise<AdminResult> 
   ]);
 
   const users = usersRes.data ?? [];
-  const deviceById = new Map(users.map((u) => [u.id, u.device_id]));
+  const deviceById = new Map(users.map((u: any) => [u.id, u.device_id]));
   const allExecs = execRowsRes.data ?? [];
 
-  const custoUsd = allExecs.reduce((sum, e) => sum + Number(e.custo_usd ?? 0), 0);
-  const creditos = users.reduce((sum, u) => sum + Number(u.credits ?? 0), 0);
+  const custoUsd = allExecs.reduce((sum: number, e: any) => sum + Number(e.custo_usd ?? 0), 0);
+  const creditos = users.reduce((sum: number, u: any) => sum + Number(u.credits ?? 0), 0);
 
-  const execucoes: AdminExecutionRow[] = allExecs.slice(0, 20).map((e) => ({
+  const execucoes: AdminExecutionRow[] = allExecs.slice(0, 20).map((e: any) => ({
     id: e.id,
     created_at: e.created_at,
     tipo: e.tipo,
@@ -50,7 +57,6 @@ export async function runAdminDashboard(adminKey: string): Promise<AdminResult> 
 
   const feedbacks: AdminFeedbackRow[] = (feedbackRes.data ?? []) as AdminFeedbackRow[];
 
-  // vw_custo_diario vive no Supabase externo — aqui não existe.
   let custoDiario: Array<{ dia: string; custo: number }> | null = null;
   let custoDiarioAviso: string | null =
     "custo_ia está no Supabase externo — confira o painel do OpenRouter.";
