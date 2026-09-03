@@ -16,7 +16,5 @@ vite-original.txt
 vite-orig.txt
 AGENTS.md
 .DS_Store
-
-# gerados pelo TanStack
 src/routeTree.gen.ts
 src/routes/test.tsx
