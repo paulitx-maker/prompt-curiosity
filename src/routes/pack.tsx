@@ -4,6 +4,8 @@ import { Copy, Search, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/pack")({ component: PackPage });
 
@@ -67,11 +69,20 @@ function PackPage() {
   }, [produtos, categoria, busca]);
 
   const copiar = async (p: Produto) => {
-    await navigator.clipboard.writeText(p.prompt || "");
-    toast.success("Prompt copiado!");
-    await logIntencao(p, 'copiou');
-    setTimeout(() => setAvaliando(p), 500);
-  };
+  const dId = localStorage.getItem("device_id")
+  const { data: u } = await supabase.from("users").select("credits").eq("device_id", dId).single()
+  
+  if (!u || u.credits <= 0) {
+    toast.error("Sem créditos. Desbloqueie por R$1,99")
+    window.dispatchEvent(new Event("abrir-paywall"))
+    return // não copia, não loga, não pede feedback
+  }
+  
+  await navigator.clipboard.writeText(p.prompt || "")
+  toast.success("Prompt copiado!")
+  await logIntencao(p, 'copiou')
+  setTimeout(() => setAvaliando(p), 500)
+}
 
   if (loading) return <div className="p-10 text-center text-sm">Carregando pack...</div>;
 
