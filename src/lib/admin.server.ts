@@ -6,10 +6,12 @@ import type {
 } from "./admin.functions";
 
 function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const env = process.env as any;
+  const url = env['SUPABASE_URL'] || env['VITE_SUPABASE_URL'];
+  const key = env['SUPABASE_SERVICE_ROLE_KEY'];
   return createClient(url, key);
 }
+
 
 export async function runAdminDashboard(adminKey: string): Promise<AdminResult> {
   const expected = process.env["ADMIN_ACCESS_KEY"];
