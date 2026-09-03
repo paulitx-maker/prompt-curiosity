@@ -1,11 +1,24 @@
 import { useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-  { auth: { persistSession: false, autoRefreshToken: false, storageKey: "antijegue-clientinit" } }
-);
+// Fallback: tenta ANON_KEY novo, depois PUBLISHABLE_KEY antigo
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey =
+  import.meta.env.VITE_SUPABASE_ANON_KEY ||
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+  import.meta.env.VITE_PACK_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl ||!supabaseKey) {
+  console.error("[ClientInit] ENV faltando", {
+    url: supabaseUrl,
+    hasKey:!!supabaseKey,
+    envs: Object.keys(import.meta.env).filter(k => k.includes('SUPABASE'))
+  });
+}
+
+const supabase = createClient(supabaseUrl!, supabaseKey!, {
+  auth: { persistSession: false, autoRefreshToken: false, storageKey: "antijegue-clientinit" }
+});
 
 export function ClientInit() {
   useEffect(() => {
