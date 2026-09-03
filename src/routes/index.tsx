@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Image as ImageIcon, Lock, Mic, Sparkles, RefreshCw } from "lucide-react";
 import { FotoPost } from "@/components/antijegue/FotoPost";
 import { AudioResumo } from "@/components/antijegue/AudioResumo";
+import { BottomNav } from "@/components/BottomNav";
+import { PaywallBottomSheet } from "@/components/PaywallBottomSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -13,13 +15,18 @@ function Index() {
   const [tab, setTab] = useState<"foto" | "audio">("foto");
   const [lastPost, setLastPost] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState("");
+  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     setDeviceId(localStorage.getItem("device_id") || "");
-    // escuta evento do FotoPost quando gerar
     const handler = (e: any) => setLastPost(e.detail);
+    const openPaywall = () => setShowPaywall(true);
     window.addEventListener("post-gerado", handler);
-    return () => window.removeEventListener("post-gerado", handler);
+    window.addEventListener("abrir-paywall", openPaywall);
+    return () => {
+      window.removeEventListener("post-gerado", handler);
+      window.removeEventListener("abrir-paywall", openPaywall);
+    };
   }, []);
 
   async function gastarCredito() {
@@ -31,7 +38,7 @@ function Index() {
     }
     const { data: user } = await supabase.from("users").select("credits").eq("device_id", deviceId).single();
     if (!user || user.credits <= 0) {
-      window.dispatchEvent(new Event("abrir-paywall"));
+      setShowPaywall(true);
       throw new Error("SEM_CREDITO");
     }
     await supabase.rpc("increment_credits", { d_id: deviceId, qtd: -1 } as any);
@@ -42,14 +49,13 @@ function Index() {
   async function handleVariacao() {
     try {
       await gastarCredito();
-      // re-dispara a geração no FotoPost
       window.dispatchEvent(new Event("gerar-variacao"));
       toast.success("Gerando variação -1 crédito");
     } catch {}
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-md px-5 pb-16 pt-10">
+    <main className="mx-auto min-h-screen w-full max-w-md px-5 pb-[88px] pt-10">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Aula 1</p>
         <h1 className="text-3xl font-bold tracking-tight">Anti-<span className="text-gradient-neon">Jegue</span></h1>
@@ -69,7 +75,7 @@ function Index() {
           <p className="text-sm whitespace-pre-wrap">{lastPost}</p>
           <div className="flex gap-2 pt-2">
             <button onClick={handleVariacao} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-black text-white py-3 text-sm font-medium"><RefreshCw className="h-4 w-4" />Gerar variação (1 crédito)</button>
-            <Link to="/pack" params={{ id: "1" }} search={{ from: "gerador" }} className="flex flex-1 items-center justify-center rounded-xl border bg-white py-3 text-sm">Ver pack secreto →</Link>
+            <Link to="/pack" className="flex flex-1 items-center justify-center rounded-xl border bg-white py-3 text-sm">Ver Biblioteca →</Link>
           </div>
         </section>
       )}
@@ -79,6 +85,9 @@ function Index() {
         <div className="flex items-center gap-3 rounded-2xl border bg-surface/60 p-4 opacity-60"><Lock className="h-4 w-4" /> Aula 3 — Texto → Imagem</div>
         <div className="flex items-center gap-3 rounded-2xl border bg-surface/60 p-4 opacity-60"><Lock className="h-4 w-4" /> Aula 4 — Ideia → Vídeo curto</div>
       </section>
+
+      {showPaywall && <PaywallBottomSheet onClose={() => setShowPaywall(false)} />}
+      <BottomNav />
     </main>
   );
 }
