@@ -4,7 +4,7 @@ import { n as require_jsx_runtime, r as require_react, t as QueryClientProvider 
 import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
 import { t as Toaster } from "../_libs/sonner.mjs";
 import { t as QueryClient } from "../_libs/tanstack__query-core.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/router-CCOKNySJ.js
+//#region node_modules/.nitro/vite/services/ssr/assets/router-CB0FqAfM.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var Toaster$1 = ({ ...props }) => {
@@ -86,7 +86,7 @@ function RootComponent() {
 		]
 	});
 }
-var $$splitComponentImporter$3 = () => import("./routes-C2lugtuy.mjs");
+var $$splitComponentImporter$3 = () => import("./routes-D1s00cXC.mjs");
 var Route$3 = createFileRoute("/")({ component: lazyRouteComponent($$splitComponentImporter$3, "component") });
 var $$splitComponentImporter$2 = () => import("./admin-a9-wvoTR.mjs");
 var Route$2 = createFileRoute("/admin")({

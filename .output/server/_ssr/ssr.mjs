@@ -1,6 +1,6 @@
 //#region node_modules/.nitro/vite/services/ssr/index.js
 var server_default = { async fetch(request, env, ctx) {
-	const mod = await import("./server-B30DBFo5.mjs");
+	const mod = await import("./server-Bxv5y0bb.mjs");
 	return (mod.default ?? mod).fetch(request, env, ctx);
 } };
 //#endregion
