@@ -87,22 +87,21 @@ export function FotoPost() {
       const res: any = await run({
         data: {
           imageBase64: b64,
+          fileBase64: b64, // compatível com server novo e antigo
           mimeType: file.type,
           fileName: file.name,
           deviceId: getDeviceId(),
           answers: { plataforma, tom, manterTexto },
         },
       });
-      if (!res.ok) setErro(res.message);
-      else {
-        // FIX SCHEMA REAL: aceita tanto nomes antigos quanto novos
-        setPost(res.post || res.post_gerado || null);
-        setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
-        setExecutionId(res.executionId ?? res.id ?? null);
-        setCreditos(res.creditosRestantes ?? res.credits ?? null);
-      }
-    } catch { setErro("Algo quebrou no caminho. Tenta de novo."); }
-    finally { setLoading(false); }
+      if (!res.ok) throw new Error(res.message || "Erro");
+      setPost(res.post || res.post_gerado || null);
+      setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
+      setExecutionId(res.executionId ?? res.id ?? null);
+      setCreditos(res.creditosRestantes ?? res.credits ?? null);
+    } catch (e: any) { 
+      setErro(e.message || "Algo quebrou no caminho. Tenta de novo."); 
+    } finally { setLoading(false); }
   };
 
   return (
