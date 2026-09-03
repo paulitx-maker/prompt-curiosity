@@ -5,7 +5,7 @@ import { n as useServerFn, t as createSsrRpc } from "./createSsrRpc-CH4dIhkL.mjs
 import { c as Lock, d as Copy, f as ChevronDown, i as Sparkles, l as LoaderCircle, m as AudioLines, n as TriangleAlert, p as Check, r as Star, s as Mic, u as Image$1 } from "../_libs/lucide-react.mjs";
 import { t as createClient } from "../_libs/supabase__supabase-js.mjs";
 import { t as cn } from "./utils-C_uf36nf.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-C2lugtuy.js
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-D1s00cXC.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 function DropZone({ accept, title, hint, icon, onFile, disabled }) {
@@ -365,6 +365,21 @@ function getSupabase() {
 	if (!url || !key) return null;
 	return createClient(url, key, { auth: { persistSession: false } });
 }
+async function compressAndToBase64(file) {
+	const bitmap = await createImageBitmap(file);
+	const max = 1024;
+	let { width, height } = bitmap;
+	if (width > max || height > max) {
+		const ratio = Math.min(max / width, max / height);
+		width = Math.round(width * ratio);
+		height = Math.round(height * ratio);
+	}
+	const canvas = document.createElement("canvas");
+	canvas.width = width;
+	canvas.height = height;
+	canvas.getContext("2d").drawImage(bitmap, 0, 0, width, height);
+	return canvas.toDataURL("image/jpeg", .72);
+}
 function FotoPost() {
 	const run = useServerFn(postImagem);
 	const [stage, setStage] = (0, import_react.useState)(1);
@@ -426,11 +441,11 @@ function FotoPost() {
 		setErro(null);
 		setStage(3);
 		try {
-			const b64 = await fileToBase64(file);
+			const b64 = await compressAndToBase64(file);
 			const res = await run({ data: {
 				imageBase64: b64,
 				fileBase64: b64,
-				mimeType: file.type,
+				mimeType: "image/jpeg",
 				fileName: file.name,
 				deviceId: getDeviceId(),
 				answers: {
@@ -439,13 +454,14 @@ function FotoPost() {
 					manterTexto
 				}
 			} });
-			if (!res.ok) throw new Error(res.message || "Erro");
+			if (!res.ok) throw new Error(res.message || "Erro no servidor");
 			setPost(res.post || res.post_gerado || null);
 			setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
 			setExecutionId(res.executionId ?? res.id ?? null);
 			setCreditos(res.creditosRestantes ?? res.credits ?? null);
 		} catch (e) {
-			setErro(e.message || "Algo quebrou no caminho. Tenta de novo.");
+			console.error(e);
+			setErro(e.message?.includes("Too Large") ? "Foto muito grande, mas já comprimi. Tenta de novo." : e.message || "Algo quebrou. Tenta de novo.");
 		} finally {
 			setLoading(false);
 		}

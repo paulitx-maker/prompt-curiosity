@@ -7,7 +7,7 @@ import { FeedbackBar } from "./FeedbackBar";
 import { Segmented } from "./Segmented";
 import { Steps } from "./Steps";
 import { ResultCard } from "./ResultCard";
-import { checkImageQuality, fileToBase64 } from "@/lib/quality";
+import { checkImageQuality } from "@/lib/quality";
 import { getDeviceId } from "@/lib/device";
 import { postImagem } from "@/lib/antijegue.functions";
 
@@ -22,6 +22,22 @@ function getSupabase() {
   const key = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_PACK_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function compressAndToBase64(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const max = 1024;
+  let { width, height } = bitmap;
+  if (width > max || height > max) {
+    const ratio = Math.min(max / width, max / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width; canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', 0.72);
 }
 
 export function FotoPost() {
@@ -50,7 +66,6 @@ export function FotoPost() {
     const sizeMb = picked.size / 1024 / 1024;
     const isHeic = picked.type === 'image/heic' || picked.type === 'image/heif' || picked.name.toLowerCase().endsWith('.heic') || picked.name.toLowerCase().endsWith('.heif');
 
-    // MONITORAMENTO - não bloqueia por tamanho, só loga
     if (isHeic || sizeMb > 5) {
       try {
         const db = getSupabase();
@@ -68,39 +83,38 @@ export function FotoPost() {
 
     if (isHeic) {
       setBlocked("Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo? (Já logamos pra monitorar)");
-      setFile(null); 
-      return;
+      setFile(null); return;
     }
 
     const result = await checkImageQuality(picked);
     if (result.status === "block") { setBlocked(result.message); setFile(null); return; }
     
-    setFile(picked); 
-    setStage(2);
+    setFile(picked); setStage(2);
   };
 
   const submit = async () => {
     if (!file || !plataforma || !tom || !manterTexto) return;
     setLoading(true); setErro(null); setStage(3);
     try {
-      const b64 = await fileToBase64(file);
+      const b64 = await compressAndToBase64(file);
       const res: any = await run({
         data: {
           imageBase64: b64,
-          fileBase64: b64, // compatível com server novo e antigo
-          mimeType: file.type,
+          fileBase64: b64,
+          mimeType: "image/jpeg",
           fileName: file.name,
           deviceId: getDeviceId(),
           answers: { plataforma, tom, manterTexto },
         },
       });
-      if (!res.ok) throw new Error(res.message || "Erro");
+      if (!res.ok) throw new Error(res.message || "Erro no servidor");
       setPost(res.post || res.post_gerado || null);
       setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
       setExecutionId(res.executionId ?? res.id ?? null);
       setCreditos(res.creditosRestantes ?? res.credits ?? null);
     } catch (e: any) { 
-      setErro(e.message || "Algo quebrou no caminho. Tenta de novo."); 
+      console.error(e);
+      setErro(e.message?.includes("Too Large") ? "Foto muito grande, mas já comprimi. Tenta de novo." : e.message || "Algo quebrou. Tenta de novo."); 
     } finally { setLoading(false); }
   };
 
