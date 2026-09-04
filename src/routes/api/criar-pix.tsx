@@ -25,8 +25,9 @@ export const Route = createFileRoute('/api/criar-pix')({
           const mpToken = env.MP_ACCESS_TOKEN
           if (!mpToken?.startsWith('APP_USR-')) return Response.json({ error: 'Token MP não é produção', correlation_id }, { status: 500 })
 
-          const pack = TABELA_PRECOS[pack_id] || TABELA_PRECOS['10']
+          const pack = (TABELA_PRECOS[pack_id] || TABELA_PRECOS['10']) as any
           const { valor_brl, qtd } = pack
+
 
           console.log(`[CRIAR-PIX][${correlation_id}][${device_id}] fase=CRIADO pack=${pack_id} valor=${valor_brl} qtd=${qtd}`)
 
@@ -40,8 +41,15 @@ export const Route = createFileRoute('/api/criar-pix')({
 
           const client = new MercadoPagoConfig({ accessToken: mpToken, options: { idempotencyKey: correlation_id } })
           const payment = new Payment(client)
-          const baseUrl = process.env.WEBHOOK_BASE_URL || `https://${process.env.VERCEL_URL}` || 'https://prompt-curiosity.vercel.app';
-          const notification_url = `${baseUrl.replace(/\/$/, '')}/api/webhook-pix`;
+          
+          // FIX: baseUrl limpa + bypass
+          const baseUrl = (env.WEBHOOK_BASE_URL || `https://${env.VERCEL_URL}` || 'https://prompt-curiosity.vercel.app').replace(/\/$/, '')
+          const bypass = env.VERCEL_AUTOMATION_BYPASS_SECRET || ''
+          const notification_url = bypass 
+            ? `${baseUrl}/api/webhook-pix?x-vercel-protection-bypass=${bypass}`
+            : `${baseUrl}/api/webhook-pix`
+
+          console.log(`[CRIAR-PIX][${correlation_id}] url=${notification_url}`)
 
           const result = await payment.create({
             body: {
@@ -50,7 +58,7 @@ export const Route = createFileRoute('/api/criar-pix')({
               payment_method_id: 'pix',
               payer: { email: `${device_id}@antijegue.com` },
               external_reference: txid,
-              notification_url: `${baseUrl}/api/webhook-pix`,
+              notification_url: notification_url,
             },
           } as any)
 
