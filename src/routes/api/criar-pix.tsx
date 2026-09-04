@@ -12,12 +12,15 @@ export const Route = createFileRoute('/api/criar-pix')({
           if (!device_id) return Response.json({ error: 'device_id obrigatório' }, { status: 400 })
 
           const env = process.env as any
-          const supabaseUrl = env['SUPABASE_URL'] || env['VITE_SUPABASE_URL']
-          const supabaseKey = env['SUPABASE_SERVICE_ROLE_KEY']
-          const mpToken = env['MP_ACCESS_TOKEN']
+          const supabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL
+          const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_KEY
+          const mpToken = env.MP_ACCESS_TOKEN
 
+          if (!supabaseUrl || !supabaseKey) {
+            return Response.json({ error: 'Supabase env faltando' }, { status: 500 })
+          }
           if (!mpToken?.startsWith('APP_USR-')) {
-            console.error('[criar-pix] TOKEN NÃO É DE PROD:', mpToken?.slice(0, 15))
+            console.error('[criar-pix] TOKEN NÃO É PROD:', mpToken?.slice(0, 20))
             return Response.json({ error: 'Token MP não é produção' }, { status: 500 })
           }
 
@@ -25,7 +28,7 @@ export const Route = createFileRoute('/api/criar-pix')({
           const txid = `pix_${device_id.slice(0, 8)}_${Date.now()}`
           const valor = Number(preco || 1.99)
 
-          await supabase.from('pagamentos_pix').insert({
+          const { error: insErr } = await supabase.from('pagamentos_pix').insert({
             device_id,
             txid,
             valor,
@@ -34,26 +37,28 @@ export const Route = createFileRoute('/api/criar-pix')({
             status: 'pendente',
           } as any)
 
+          if (insErr) throw insErr
+
           const client = new MercadoPagoConfig({ accessToken: mpToken })
           const payment = new Payment(client)
 
-          // corrige VERCEL_URL - pega do env correto
-          const vercelUrl = env['VERCEL_URL'] || env['VERCEL_PROJECT_PRODUCTION_URL'] || 'prompt-curiosity.vercel.app'
-          const baseUrl = vercelUrl.startsWith('http') ? vercelUrl : `https://${vercelUrl}`
+          const vercelUrlRaw = env.VERCEL_URL || env.VERCEL_PROJECT_PRODUCTION_URL || 'prompt-curiosity.vercel.app'
+          const baseUrl = vercelUrlRaw.startsWith('http') ? vercelUrlRaw : `https://${vercelUrlRaw}`
 
           const result = await payment.create({
             body: {
               transaction_amount: valor,
-              description: 'Anti-Jegue - Creditos',
+              description: 'Anti-Jegue - 10 creditos',
               payment_method_id: 'pix',
               payer: { email: `${device_id}@antijegue.com` },
-              external_reference: txid,
+              external_reference: txid, // webhook vai achar por aqui
               notification_url: `${baseUrl}/api/webhook-pix`,
             },
           } as any)
 
-          // salva o id do MP pra webhook achar depois
-          await supabase.from('pagamentos_pix').update({ mercadopago_id: String((result as any).id) }).eq('txid', txid)
+          await supabase.from('pagamentos_pix').update({ 
+            mercadopago_id: String((result as any).id) 
+          }).eq('txid', txid)
 
           const pixData = (result as any).point_of_interaction?.transaction_data
 
