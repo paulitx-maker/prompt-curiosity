@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, AudioLines, Loader2, Sparkles } from "lucide-react";
+import { AudioLines, Loader2, Sparkles } from "lucide-react";
 import { DropZone } from "./DropZone";
 import { FeedbackBar } from "./FeedbackBar";
 import { Segmented } from "./Segmented";
@@ -51,7 +51,7 @@ export function AudioResumo() {
     setLoading(true); setErro(null); setStage(3);
     try {
       const audioBase64 = await fileToBase64(file);
-      const res = await run({
+      const res: any = await run({
         data: {
           audioBase64,
           mimeType: file.type,
@@ -61,15 +61,30 @@ export function AudioResumo() {
           answers: { numeroPessoas, ruido, resultado },
         },
       });
-      if (!res.ok) setErro(res.message);
-      else {
+      if (!res.ok) {
+        const msg = res.message || "";
+        if (msg.includes("SEM_CREDITO") || msg.includes("LIMITE") || msg.toLowerCase().includes("credit")) {
+          window.dispatchEvent(new Event("abrir-paywall"));
+          setStage(2);
+          return;
+        }
+        throw new Error(msg);
+      } else {
         setTranscricao(res.transcricao);
         setResumo(res.resumo);
         setCusto(res.custo_estimado);
         setExecutionId((res as any).executionId ?? null);
+        window.dispatchEvent(new Event("credits-updated"));
       }
-    } catch { setErro("Algo quebrou no caminho."); }
-    finally { setLoading(false); }
+    } catch (e: any) {
+      const msg = e.message || "";
+      if (msg.includes("SEM_CREDITO") || msg.includes("LIMITE") || msg.toLowerCase().includes("credit")) {
+        window.dispatchEvent(new Event("abrir-paywall"));
+        setStage(2);
+      } else {
+        setErro(msg || "Algo quebrou no caminho.");
+      }
+    } finally { setLoading(false); }
   };
 
   return (
