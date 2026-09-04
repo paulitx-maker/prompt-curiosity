@@ -50,7 +50,7 @@ export const Route = createFileRoute('/api/webhook-pix')({
           const payment = await new Payment(client).get({ id: mpId }) as any
 
           if (payment.status !== 'approved') {
-            console.log('[webhook-pix] status não aprovado:', payment.status)
+            console.log('[webhook-pix] status não aprovado:', payment.status, 'mpId:', mpId)
             return Response.json({ ok: true, status: payment.status })
           }
 
@@ -66,19 +66,20 @@ export const Route = createFileRoute('/api/webhook-pix')({
             return Response.json({ ok: true })
           }
 
-          // 2. Idempotência CORRETA: só sai se já creditou DE VERDADE antes
-          // Checa se já existe execution de pagamento pra esse mpId
-          const { data: jaCreditado } = await supabase.from('executions').select('id').eq('device_id', (pag as any).device_id).ilike('input_json->>mercadopago_id', String(mpId)).limit(1).maybeSingle()
+          console.log('[WEBHOOK] mpId:', mpId, 'txid:', (pag as any).txid, 'device_id:', (pag as any).device_id, 'valor:', (pag as any).valor_brl ?? (pag as any).valor)
+
+          // 2. Idempotência
+          const { data: jaCreditado } = await supabase.from('executions').select('id').eq('device_id', (pag as any).device_id).ilike('transcrição', `%${mpId}%`).limit(1).maybeSingle()
           if (jaCreditado) {
             console.log('[webhook-pix] já creditado antes', mpId)
             await supabase.from('pagamentos_pix').update({ status: 'aprovado', mercadopago_id: String(mpId) } as any).eq('id', (pag as any).id)
             return Response.json({ ok: true, idempotente: true })
           }
 
-          // 3. Credita - ATUALIZA DIRETO NA TABELA USERS (sem RPC)
-          const qtd = Number((pag as any).valor_brl) >= 5 ? 30 : 10
+          // 3. Credita
+          const valorPago = Number((pag as any).valor_brl ?? (pag as any).valor ?? 0)
+          const qtd = valorPago >= 5 ? 30 : 10
           
-          // Pega user atual
           const { data: user } = await supabase.from('users').select('id, credits, creditos').eq('device_id', (pag as any).device_id).maybeSingle()
           
           if (user) {
@@ -88,7 +89,6 @@ export const Route = createFileRoute('/api/webhook-pix')({
             }).eq('device_id', (pag as any).device_id)
             if (error) throw error
           } else {
-            // cria user se não existir (primeiro pagamento)
             await supabase.from('users').insert({
               device_id: (pag as any).device_id,
               credits: qtd,
@@ -96,7 +96,7 @@ export const Route = createFileRoute('/api/webhook-pix')({
             } as any)
           }
 
-          // 4. Só AGORA marca como aprovado e loga
+          // 4. Marca como aprovado
           await supabase.from('pagamentos_pix').update({ status: 'aprovado', mercadopago_id: String(mpId) } as any).eq('id', (pag as any).id)
           
           await supabase.from('executions').insert({
@@ -106,7 +106,7 @@ export const Route = createFileRoute('/api/webhook-pix')({
             modelo_usado: 'mercadopago',
             file_name: `pix_${mpId}`,
             // @ts-ignore
-            transcrição: JSON.stringify({ mercadopago_id: String(mpId), creditos: qtd, valor: (pag as any).valor_brl }),
+            transcrição: JSON.stringify({ mercadopago_id: String(mpId), creditos: qtd, valor: valorPago }),
           } as any)
 
           console.log('[webhook-pix] CREDITADO OK', (pag as any).device_id, `+${qtd}`)
