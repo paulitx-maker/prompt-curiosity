@@ -40,7 +40,8 @@ export const Route = createFileRoute('/api/criar-pix')({
 
           const client = new MercadoPagoConfig({ accessToken: mpToken, options: { idempotencyKey: correlation_id } })
           const payment = new Payment(client)
-          const baseUrl = `https://${(env.VERCEL_URL || 'prompt-curiosity.vercel.app').replace(/^https?:\/\//,'')}`
+          const baseUrl = process.env.WEBHOOK_BASE_URL || `https://${process.env.VERCEL_URL}` || 'https://prompt-curiosity.vercel.app';
+          const notification_url = `${baseUrl.replace(/\/$/, '')}/api/webhook-pix`;
 
           const result = await payment.create({
             body: {
