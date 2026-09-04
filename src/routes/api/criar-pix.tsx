@@ -9,6 +9,9 @@ export const Route = createFileRoute('/api/criar-pix')({
         try {
           const body = await request.json()
           const { device_id, pack_id, preco } = body
+          
+          console.log('[CRIAR-PIX] device_id:', device_id, 'pack:', pack_id, 'preco:', preco)
+
           if (!device_id) return Response.json({ error: 'device_id obrigatório' }, { status: 400 })
 
           const env = process.env as any
@@ -32,6 +35,7 @@ export const Route = createFileRoute('/api/criar-pix')({
             device_id,
             txid,
             valor,
+            valor_brl: valor, // garante compatibilidade com sua tabela
             mercadopago_id: null,
             pack_id: pack_id || null,
             status: 'pendente',
@@ -51,7 +55,7 @@ export const Route = createFileRoute('/api/criar-pix')({
               description: 'Anti-Jegue - 10 creditos',
               payment_method_id: 'pix',
               payer: { email: `${device_id}@antijegue.com` },
-              external_reference: txid, // webhook vai achar por aqui
+              external_reference: txid,
               notification_url: `${baseUrl}/api/webhook-pix`,
             },
           } as any)
@@ -61,6 +65,8 @@ export const Route = createFileRoute('/api/criar-pix')({
           }).eq('txid', txid)
 
           const pixData = (result as any).point_of_interaction?.transaction_data
+
+          console.log('[CRIAR-PIX] pix criado ok:', result.id, 'txid:', txid)
 
           return Response.json({
             id: result.id,
