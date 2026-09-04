@@ -18,8 +18,8 @@ type ManterTexto = "manter" | "reescrever";
 function getSupabase() {
   if (typeof window === "undefined") return null;
   const env: any = (import.meta as any).env || {};
-  const url = env.VITE_SUPABASE_URL || env.VITE_PACK_SUPABASE_URL;
-  const key = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY || env.VITE_PACK_SUPABASE_ANON_KEY;
+  const url = env.VITE_SUPABASE_URL;
+  const key = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
 }
@@ -82,7 +82,7 @@ export function FotoPost() {
     }
 
     if (isHeic) {
-      setBlocked("Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo? (Já logamos pra monitorar)");
+      setBlocked("Seu iPhone mandou em HEIC e nosso modelo ainda não lê. Exporta como JPEG e tenta de novo?");
       setFile(null); return;
     }
 
@@ -107,14 +107,30 @@ export function FotoPost() {
           answers: { plataforma, tom, manterTexto },
         },
       });
-      if (!res.ok) throw new Error(res.message || "Erro no servidor");
+      if (!res.ok) {
+        const msg = res.message || "";
+        if (msg.includes("SEM_CREDITO") || msg.includes("LIMITE") || msg.includes("credits")) {
+          window.dispatchEvent(new Event("abrir-paywall"));
+          setStage(2);
+          return;
+        }
+        throw new Error(msg || "Erro no servidor");
+      }
       setPost(res.post || res.post_gerado || null);
       setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
       setExecutionId(res.executionId ?? res.id ?? null);
       setCreditos(res.creditosRestantes ?? res.credits ?? null);
+      window.dispatchEvent(new CustomEvent("post-gerado", { detail: res.post }));
+      window.dispatchEvent(new Event("credits-updated"));
     } catch (e: any) { 
-      console.error(e);
-      setErro(e.message?.includes("Too Large") ? "Foto muito grande, mas já comprimi. Tenta de novo." : e.message || "Algo quebrou. Tenta de novo."); 
+      const msg = e.message || "";
+      if (msg.includes("SEM_CREDITO") || msg.includes("LIMITE")) {
+        window.dispatchEvent(new Event("abrir-paywall"));
+        setStage(2);
+      } else {
+        console.error(e);
+        setErro(msg.includes("Too Large") ? "Foto muito grande, mas já comprimi. Tenta de novo." : msg || "Algo quebrou. Tenta de novo."); 
+      }
     } finally { setLoading(false); }
   };
 
