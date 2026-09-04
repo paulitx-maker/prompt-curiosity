@@ -1,58 +1,51 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { createClient } from '@supabase/supabase-js'
+import crypto from 'crypto'
+
+const TABELA_PRECOS: Record<string, { valor_brl: number, qtd: number }> = {
+  '10': { valor_brl: 1.99, qtd: 10 },
+  '30': { valor_brl: 4.99, qtd: 30 },
+  'pack_10': { valor_brl: 1.99, qtd: 10 },
+  'pack_30': { valor_brl: 4.99, qtd: 30 },
+}
 
 export const Route = createFileRoute('/api/criar-pix')({
   server: {
     handlers: {
       POST: async ({ request }: any) => {
+        const correlation_id = crypto.randomUUID()
         try {
           const body = await request.json()
-          const { device_id, pack_id, preco } = body
-          
-          console.log('[CRIAR-PIX] device_id:', device_id, 'pack:', pack_id, 'preco:', preco)
-
-          if (!device_id) return Response.json({ error: 'device_id obrigatório' }, { status: 400 })
+          const { device_id, pack_id } = body
+          if (!device_id) return Response.json({ error: 'device_id obrigatório', correlation_id }, { status: 400 })
 
           const env = process.env as any
-          const supabaseUrl = env.SUPABASE_URL || env.VITE_SUPABASE_URL
-          const supabaseKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_KEY
+          const supabase = createClient(env.SUPABASE_URL || env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_KEY)
           const mpToken = env.MP_ACCESS_TOKEN
+          if (!mpToken?.startsWith('APP_USR-')) return Response.json({ error: 'Token MP não é produção', correlation_id }, { status: 500 })
 
-          if (!supabaseUrl || !supabaseKey) {
-            return Response.json({ error: 'Supabase env faltando' }, { status: 500 })
-          }
-          if (!mpToken?.startsWith('APP_USR-')) {
-            console.error('[criar-pix] TOKEN NÃO É PROD:', mpToken?.slice(0, 20))
-            return Response.json({ error: 'Token MP não é produção' }, { status: 500 })
-          }
+          const pack = TABELA_PRECOS[pack_id] || TABELA_PRECOS['10']
+          const { valor_brl, qtd } = pack
 
-          const supabase = createClient(supabaseUrl, supabaseKey)
-          const txid = `pix_${device_id.slice(0, 8)}_${Date.now()}`
-          const valor = Number(preco || 1.99)
+          console.log(`[CRIAR-PIX][${correlation_id}][${device_id}] fase=CRIADO pack=${pack_id} valor=${valor_brl} qtd=${qtd}`)
+
+          const txid = `pix_${device_id.slice(0,8)}_${Date.now()}_${correlation_id.slice(0,8)}`
 
           const { error: insErr } = await supabase.from('pagamentos_pix').insert({
-            device_id,
-            txid,
-            valor,
-            valor_brl: valor, // garante compatibilidade com sua tabela
-            mercadopago_id: null,
-            pack_id: pack_id || null,
-            status: 'pendente',
+            correlation_id, device_id, txid, valor_brl, pack_id: pack_id || '10',
+            qtd_creditos: qtd, status: 'pendente', fase: 'CRIADO', mercadopago_id: null
           } as any)
-
           if (insErr) throw insErr
 
-          const client = new MercadoPagoConfig({ accessToken: mpToken })
+          const client = new MercadoPagoConfig({ accessToken: mpToken, options: { idempotencyKey: correlation_id } })
           const payment = new Payment(client)
-
-          const vercelUrlRaw = env.VERCEL_URL || env.VERCEL_PROJECT_PRODUCTION_URL || 'prompt-curiosity.vercel.app'
-          const baseUrl = vercelUrlRaw.startsWith('http') ? vercelUrlRaw : `https://${vercelUrlRaw}`
+          const baseUrl = `https://${(env.VERCEL_URL || 'prompt-curiosity.vercel.app').replace(/^https?:\/\//,'')}`
 
           const result = await payment.create({
             body: {
-              transaction_amount: valor,
-              description: 'Anti-Jegue - 10 creditos',
+              transaction_amount: valor_brl,
+              description: `Anti-Jegue - ${qtd} creditos`,
               payment_method_id: 'pix',
               payer: { email: `${device_id}@antijegue.com` },
               external_reference: txid,
@@ -60,24 +53,21 @@ export const Route = createFileRoute('/api/criar-pix')({
             },
           } as any)
 
-          await supabase.from('pagamentos_pix').update({ 
-            mercadopago_id: String((result as any).id) 
-          }).eq('txid', txid)
+          await supabase.from('pagamentos_pix').update({
+            mercadopago_id: String((result as any).id),
+            fase: 'MP_CRIADO', raw_mp_response: result as any, updated_at: new Date().toISOString()
+          } as any).eq('correlation_id', correlation_id)
 
           const pixData = (result as any).point_of_interaction?.transaction_data
-
-          console.log('[CRIAR-PIX] pix criado ok:', result.id, 'txid:', txid)
-
-          return Response.json({
-            id: result.id,
-            txid,
-            qr_code: pixData?.qr_code,
-            qr_code_base64: pixData?.qr_code_base64,
-            valor,
-          })
+          console.log(`[CRIAR-PIX][${correlation_id}] fase=MP_CRIADO mpId=${result.id}`)
+          return Response.json({ id: result.id, txid, correlation_id, qr_code: pixData?.qr_code, qr_code_base64: pixData?.qr_code_base64, valor_brl, qtd_creditos: qtd })
         } catch (e: any) {
-          console.error('[criar-pix] erro', e)
-          return Response.json({ error: e.message }, { status: 500 })
+          console.error(`[CRIAR-PIX][${correlation_id}] fase=FALHA_MP`, e.message)
+          try {
+            const supa = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+            await supa.from('pagamentos_pix').update({ fase: 'FALHA_MP', error_log: e.message, updated_at: new Date().toISOString() } as any).eq('correlation_id', correlation_id)
+          } catch {}
+          return Response.json({ error: e.message, correlation_id }, { status: 500 })
         }
       },
     },
