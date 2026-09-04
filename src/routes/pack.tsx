@@ -2,24 +2,12 @@ import { useMemo, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Copy, Search, Star, X } from "lucide-react";
 import { toast } from "sonner";
-import { createClient } from "@supabase/supabase-js";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-
 
 export const Route = createFileRoute("/pack")({ component: PackPage });
 
 interface Produto { id: string; titulo: string | null; prompt: string | null; categoria: string | null; preco: number | string | null; slug: string | null; ativo: boolean | null; }
-
-function getSupabase() {
-  if (typeof window === "undefined") return null;
-  const env: any = (import.meta as any).env || {};
-  const url = env.VITE_SUPABASE_URL;
-  const key = env.VITE_SUPABASE_ANON_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  console.log("SUPABASE ENV CHECK:", { hasUrl:!!url, hasKey:!!key });
-  if (!url ||!key) return null;
-  return createClient(url, key, { auth: { persistSession: false } });
-}
 
 function getDeviceId() {
   if (typeof window === "undefined") return "server";
@@ -29,9 +17,7 @@ function getDeviceId() {
 }
 
 async function logIntencao(produto: Produto, etapa: string) {
-  const db = getSupabase();
-  if(!db) return;
-  await db.from("intencoes_compra").insert({ device_id: getDeviceId(), produto_id: produto.id, categoria: produto.categoria, etapa });
+  await supabase.from("intencoes_compra").insert({ device_id: getDeviceId(), produto_id: produto.id, categoria: produto.categoria, etapa } as any);
 }
 
 function PackPage() {
@@ -44,10 +30,7 @@ function PackPage() {
 
   useEffect(() => {
     (async () => {
-      const db = getSupabase();
-      if (!db) { setErro("Sem VITE_SUPABASE_URL/ANON_KEY no.env"); setLoading(false); return; }
-      const { data, error } = await db.from("produtos").select("*").eq("ativo", true).order("created_at", { ascending: false });
-      console.log("PRODUTOS DEBUG:", data, error);
+      const { data, error } = await supabase.from("produtos").select("*").eq("ativo", true).order("created_at", { ascending: false });
       if (error) setErro(error.message);
       setProdutos((data as any) || []);
       setLoading(false);
@@ -69,30 +52,28 @@ function PackPage() {
   }, [produtos, categoria, busca]);
 
   const copiar = async (p: Produto) => {
-  const dId = localStorage.getItem("device_id")
-  const { data: u } = await supabase.from("users").select("credits").eq("device_id", dId).single()
-  
-  if (!u || u.credits <= 0) {
-    toast.error("Sem créditos. Desbloqueie por R$1,99")
-    window.dispatchEvent(new Event("abrir-paywall"))
-    return // não copia, não loga, não pede feedback
+    const dId = getDeviceId();
+    const { data: u } = await supabase.from("users").select("credits").eq("device_id", dId).single();
+
+    if (!u || u.credits <= 0) {
+      window.dispatchEvent(new Event("abrir-paywall")); // abre o mesmo sheet da HOME
+      return;
+    }
+
+    await navigator.clipboard.writeText(p.prompt || "");
+    toast.success("Prompt copiado!");
+    await logIntencao(p, 'copiou');
+    setTimeout(() => setAvaliando(p), 600);
   }
-  
-  await navigator.clipboard.writeText(p.prompt || "")
-  toast.success("Prompt copiado!")
-  await logIntencao(p, 'copiou')
-  setTimeout(() => setAvaliando(p), 500)
-}
 
   if (loading) return <div className="p-10 text-center text-sm">Carregando pack...</div>;
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pb-16 pt-10">
+    <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pb-28 pt-10">
       <header className="space-y-3 text-center">
         <h1 className="text-3xl font-bold">Brazilian Prompt Pack</h1>
         <p className="text-sm text-muted-foreground">Copie e cole no ChatGPT, Claude, Gemini - A partir de R$4,90</p>
-        {erro && <p className="text-xs text-red-400 p-3 border border-red-500/30 rounded-xl">Erro Supabase: {erro}</p>}
-        {produtos.length === 0 &&!erro && <p className="text-xs text-orange-400 p-3 border rounded-xl">Nenhum produto com ativo=true no Supabase.</p>}
+        {erro && <p className="text-xs text-red-400 p-3 border border-red-500/30 rounded-xl">Erro: {erro}</p>}
       </header>
       <div className="mt-8 flex flex-wrap gap-2">
         {categorias.map(c => (
@@ -126,8 +107,7 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
   const enviar = async () => {
     if (nota === 0) return;
     setEnviando(true);
-    const db = getSupabase();
-    const { error } = await db!.from("feedbacks").insert({ device_id: getDeviceId(), execution_id: null, nota, o_que_faltou: texto.trim() || null });
+    const { error } = await supabase.from("feedbacks").insert({ device_id: getDeviceId(), execution_id: null, nota, o_que_faltou: texto.trim() || null } as any);
     if (error) toast.error("Erro: " + error.message);
     else { await logIntencao(produto, `avaliou_nota_${nota}`); toast.success("Obrigado!"); onClose(); }
     setEnviando(false);

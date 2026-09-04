@@ -7,6 +7,7 @@ import { ClientInit } from "@/components/ClientInit";
 import { CreditsBadge } from "@/components/CreditsBadge";
 import appCss from "../styles.css?url";
 import { BottomNav } from '@/components/BottomNav'
+import { PaywallBottomSheet } from "@/components/PaywallBottomSheet"
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -46,6 +47,7 @@ function RootComponent() {
         {deviceId && <CreditsBadge deviceId={deviceId} />}
       </header>
       <Outlet />
+      <PaywallBottomSheet />
       <BottomNav />
       <Toaster />
     </QueryClientProvider>
