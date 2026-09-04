@@ -4,7 +4,6 @@ import { Image as ImageIcon, Lock, Mic, Sparkles, RefreshCw } from "lucide-react
 import { FotoPost } from "@/components/antijegue/FotoPost";
 import { AudioResumo } from "@/components/antijegue/AudioResumo";
 import { BottomNav } from "@/components/BottomNav";
-import { PaywallBottomSheet } from "@/components/PaywallBottomSheet";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,18 +14,12 @@ function Index() {
   const [tab, setTab] = useState<"foto" | "audio">("foto");
   const [lastPost, setLastPost] = useState<string | null>(null);
   const [deviceId, setDeviceId] = useState("");
-  const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
     setDeviceId(localStorage.getItem("device_id") || "");
     const handler = (e: any) => setLastPost(e.detail);
-    const openPaywall = () => setShowPaywall(true);
     window.addEventListener("post-gerado", handler);
-    window.addEventListener("abrir-paywall", openPaywall);
-    return () => {
-      window.removeEventListener("post-gerado", handler);
-      window.removeEventListener("abrir-paywall", openPaywall);
-    };
+    return () => window.removeEventListener("post-gerado", handler);
   }, []);
 
   async function gastarCredito() {
@@ -38,7 +31,8 @@ function Index() {
     }
     const { data: user } = await supabase.from("users").select("credits").eq("device_id", deviceId).single();
     if (!user || user.credits <= 0) {
-      setShowPaywall(true);
+      // mesma barra branca do PACK - agora global
+      window.dispatchEvent(new Event("abrir-paywall"));
       throw new Error("SEM_CREDITO");
     }
     await supabase.rpc("increment_credits", { d_id: deviceId, qtd: -1 } as any);
@@ -63,11 +57,11 @@ function Index() {
       </header>
 
       <nav className="mt-7 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-surface p-1.5">
-        <button onClick={() => setTab("foto")} className={cn("flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-all", tab==="foto" ? "bg-gradient-neon text-white glow-soft" : "text-muted-foreground hover:text-foreground")}><ImageIcon className="h-4 w-4" />Foto → Post</button>
-        <button onClick={() => setTab("audio")} className={cn("flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-all", tab==="audio" ? "bg-gradient-neon text-white glow-soft" : "text-muted-foreground hover:text-foreground")}><Mic className="h-4 w-4" />Áudio → Resumo</button>
+        <button onClick={() => setTab("foto")} className={cn("flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-all", tab==="foto"? "bg-gradient-neon text-white glow-soft" : "text-muted-foreground")}><ImageIcon className="h-4 w-4" />Foto → Post</button>
+        <button onClick={() => setTab("audio")} className={cn("flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-all", tab==="audio"? "bg-gradient-neon text-white glow-soft" : "text-muted-foreground")}><Mic className="h-4 w-4" />Áudio → Resumo</button>
       </nav>
 
-      <section className="mt-7">{tab === "foto" ? <FotoPost /> : <AudioResumo />}</section>
+      <section className="mt-7">{tab === "foto"? <FotoPost /> : <AudioResumo />}</section>
 
       {lastPost && (
         <section className="mt-6 animate-in fade-in rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
@@ -86,7 +80,6 @@ function Index() {
         <div className="flex items-center gap-3 rounded-2xl border bg-surface/60 p-4 opacity-60"><Lock className="h-4 w-4" /> Aula 4 — Ideia → Vídeo curto</div>
       </section>
 
-      {showPaywall && <PaywallBottomSheet onClose={() => setShowPaywall(false)} />}
       <BottomNav />
     </main>
   );
