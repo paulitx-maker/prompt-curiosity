@@ -61,18 +61,17 @@ function PackPage() {
     });
   }, [produtos, categoria, busca]);
 
-  // LOCAL - igual FotoPost, o index.tsx vai substituir se tiver orquestrador
-  const gastarCreditoLocal = async (tipo: string = 'copia_pack') => {
+  // FIX: recebe packId pra não ficar null no log
+  const gastarCreditoLocal = async (tipo: string = 'copia_pack', packId?: string) => {
     const dId = getId();
     if (credits <= 0) {
-      await track('click_copiar_bloqueado' as any, { tipo });
+      await track('click_copiar_bloqueado' as any, { pack_id: packId, tipo });
       window.dispatchEvent(new Event("abrir-paywall"));
       throw new Error("SEM_CREDITO");
     }
-    // seu charge_credit atomico
     const { data: novoSaldo, error } = await supabase.rpc('charge_credit', { _device_id: dId, _custo: 1 } as any);
     if (error || novoSaldo === null || novoSaldo < 0) {
-      window.dispatchEvent(new Event("abrir-paywall"));
+      // não dispara paywall de novo pra não duplicar toast
       throw new Error("SEM_CREDITO");
     }
     setCredits(novoSaldo);
@@ -87,9 +86,9 @@ function PackPage() {
 
     try {
       setConsuming(p.id);
-      // A LINHA QUE VOCÊ PEDIU - ORQUESTRADOR OU LOCAL
       const gastar = (window as any).orquestradorGastarCredito || gastarCreditoLocal;
-      const novoSaldo = await gastar('copia_pack');
+      // FIX: passa pack id
+      const novoSaldo = await gastar('copia_pack', p.id);
 
       await track('click_copiar_full', { pack_id: p.id } as any);
 
@@ -166,7 +165,6 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
         <div className="flex justify-between items-center"><h3 className="font-bold text-sm">Gostou de {produto.titulo}?</h3><button onClick={onClose}><X className="h-5 w-5" /></button></div>
         <div className="flex justify-center gap-1.5">{[1,2,3,4,5].map(n => (<button key={n} onClick={() => setNota(n)}><Star className={cn("h-8 w-8 transition", nota >= n? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} /></button>))}</div>
         {nota > 0 && nota <= 3 && (<div className="space-y-2"><label className="text-xs text-muted-foreground">O que faltou?</label><textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder="Me diz o que podemos melhorar..." className="w-full rounded-xl border bg-background p-3 text-sm min-h-[80px]" /></div>)}
-        {/* FIX QUADRO BRANCO - texto preto legivel */}
         <button disabled={nota===0 || enviando} onClick={enviar} className="w-full rounded-xl bg-black text-white dark:bg-white dark:text-black px-4 py-3 text-sm font-semibold disabled:opacity-40">{enviando? "Enviando..." : "Enviar avaliação"}</button>
         <button onClick={onClose} className="w-full rounded-xl border border-border bg-transparent py-2.5 text-sm">Cancelar</button>
       </div>
