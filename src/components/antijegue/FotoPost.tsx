@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ImageIcon, Loader2, Sparkles } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
@@ -10,6 +10,10 @@ import { ResultCard } from "./ResultCard";
 import { checkImageQuality } from "@/lib/quality";
 import { getDeviceId } from "@/lib/device";
 import { postImagem } from "@/lib/antijegue.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { useCredits } from "@/hooks/use-credits";
+import { useTracking } from "@/hooks/use-tracking";
+import { toast } from "sonner";
 
 type Plataforma = "instagram" | "linkedin" | "whatsapp";
 type Tom = "vendas" | "informativo" | "engracado";
@@ -20,7 +24,7 @@ function getSupabase() {
   const env: any = (import.meta as any).env || {};
   const url = env.VITE_SUPABASE_URL;
   const key = env.VITE_SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+  if (!url ||!key) return null;
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -54,6 +58,22 @@ export function FotoPost() {
   const [custo, setCusto] = useState<number | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
   const [creditos, setCreditos] = useState<number | null>(null);
+  const [creditsLocal, setCreditsLocal] = useState<number>(99);
+
+  const { consume } = useCredits() as any;
+  const { track } = useTracking();
+
+  useEffect(() => {
+    const load = async () => {
+      const dId = getDeviceId();
+      const { data } = await supabase.from("users").select("credits").eq("device_id", dId).single();
+      if (data) setCreditsLocal(data.credits);
+    };
+    load();
+    const h = () => load();
+    window.addEventListener("credits-updated", h);
+    return () => window.removeEventListener("credits-updated", h);
+  }, []);
 
   const reset = () => {
     setStage(1); setFile(null); setBlocked(null);
@@ -75,7 +95,7 @@ export function FotoPost() {
             file_name: picked.name,
             file_type: picked.type || 'heic',
             file_size_mb: Number(sizeMb.toFixed(2)),
-            motivo: isHeic ? 'heic_detectado' : 'maior_que_5mb'
+            motivo: isHeic? 'heic_detectado' : 'maior_que_5mb'
           });
         }
       } catch {}
@@ -88,14 +108,42 @@ export function FotoPost() {
 
     const result = await checkImageQuality(picked);
     if (result.status === "block") { setBlocked(result.message); setFile(null); return; }
-    
+
     setFile(picked); setStage(2);
   };
 
+  // FUNÇÃO LOCAL - é essa que o index.tsx vai substituir se tiver paywall global
+  const gastarCreditoLocal = async (tipo: string = 'geracao_post') => {
+    const dId = getDeviceId();
+    const hoje = new Date().toISOString().slice(0,10);
+    const { count } = await supabase.from("executions").select("*", { count: "exact", head: true }).eq("device_id", dId).gte("created_at", `${hoje}T00:00:00`);
+    if ((count || 0) >= 10) {
+      toast.error("Limite de 10 hoje atingido.");
+      throw new Error("LIMITE");
+    }
+    if (creditsLocal <= 0) {
+      await track('click_gerar_bloqueado' as any, { tipo });
+      window.dispatchEvent(new Event("abrir-paywall"));
+      throw new Error("SEM_CREDITO");
+    }
+    await consume(tipo === 'geracao_post'? 'consumo_geracao' : 'consumo_variacao', 'foto-post', undefined);
+    await supabase.from("executions").insert({ device_id: dId, tipo } as any);
+    const { data } = await supabase.from("users").select("credits").eq("device_id", dId).single();
+    if (data) {
+      setCreditsLocal(data.credits);
+      setCreditos(data.credits);
+    }
+    window.dispatchEvent(new Event("credits-updated"));
+  };
+
   const submit = async () => {
-    if (!file || !plataforma || !tom || !manterTexto) return;
+    if (!file ||!plataforma ||!tom ||!manterTexto) return;
     setLoading(true); setErro(null); setStage(3);
     try {
+      // ATENÇÃO: aqui está a troca que você pediu
+      const gastar = (window as any).orquestradorGastarCredito || gastarCreditoLocal;
+      await gastar('geracao_post');
+
       const b64 = await compressAndToBase64(file);
       const res: any = await run({
         data: {
@@ -117,19 +165,18 @@ export function FotoPost() {
         throw new Error(msg || "Erro no servidor");
       }
       setPost(res.post || res.post_gerado || null);
-      setCusto(res.custo_estimado ?? res.custo_usd ?? res.custo ?? null);
-      setExecutionId(res.executionId ?? res.id ?? null);
-      setCreditos(res.creditosRestantes ?? res.credits ?? null);
+      setCusto(res.custo_estimado?? res.custo_usd?? res.custo?? null);
+      setExecutionId(res.executionId?? res.id?? null);
+      setCreditos(res.creditosRestantes?? res.credits?? creditsLocal - 1);
       window.dispatchEvent(new CustomEvent("post-gerado", { detail: res.post }));
-      window.dispatchEvent(new Event("credits-updated"));
-    } catch (e: any) { 
+    } catch (e: any) {
       const msg = e.message || "";
       if (msg.includes("SEM_CREDITO") || msg.includes("LIMITE")) {
         window.dispatchEvent(new Event("abrir-paywall"));
         setStage(2);
       } else {
         console.error(e);
-        setErro(msg.includes("Too Large") ? "Foto muito grande, mas já comprimi. Tenta de novo." : msg || "Algo quebrou. Tenta de novo."); 
+        setErro(msg.includes("Too Large")? "Foto muito grande, mas já comprimi. Tenta de novo." : msg || "Algo quebrou. Tenta de novo.");
       }
     } finally { setLoading(false); }
   };
@@ -148,7 +195,7 @@ export function FotoPost() {
           <Segmented<Plataforma> label="Qual a plataforma?" value={plataforma} onChange={setPlataforma} options={[{ value: "instagram", label: "Instagram" }, { value: "linkedin", label: "LinkedIn" }, { value: "whatsapp", label: "WhatsApp" }]} />
           <Segmented<Tom> label="Qual o tom?" value={tom} onChange={setTom} options={[{ value: "vendas", label: "Vendas" }, { value: "informativo", label: "Informativo" }, { value: "engracado", label: "Engraçado" }]} />
           <Segmented<ManterTexto> label="O texto da imagem deve ser mantido ou reescrito?" value={manterTexto} onChange={setManterTexto} options={[{ value: "manter", label: "Manter" }, { value: "reescrever", label: "Reescrever" }]} />
-          <button type="button" disabled={!plataforma || !tom || !manterTexto} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-neon px-4 py-3.5 text-sm font-semibold text-primary-foreground"><Sparkles className="h-4 w-4" />Gerar post</button>
+          <button type="button" disabled={!plataforma ||!tom ||!manterTexto || loading} onClick={submit} className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-neon px-4 py-3.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"><Sparkles className="h-4 w-4" />Gerar post</button>
         </div>
       )}
       {stage === 3 && (
@@ -159,8 +206,8 @@ export function FotoPost() {
             <>
               <ResultCard title="Post gerado" content={post} />
               {executionId && <FeedbackBar executionId={executionId} />}
-              {custo !== null && <p className="text-xs text-muted-foreground">Custo estimado: ${custo.toFixed(6)} — Gemini 2.5 Flash Lite</p>}
-              <p className="text-[11px] text-muted-foreground/70">Custo: 1 crédito{creditos !== null ? ` · ${creditos} restantes` : ""}</p>
+              {custo!== null && <p className="text-xs text-muted-foreground">Custo estimado: ${custo.toFixed(6)} — Gemini 2.5 Flash Lite</p>}
+              <p className="text-[11px] text-muted-foreground/70">Custo: 1 crédito{creditos!== null? ` · ${creditos} restantes` : ` · ${creditsLocal} restantes`}</p>
               <button type="button" onClick={reset} className="w-full rounded-xl border bg-secondary px-4 py-3 text-sm">Começar de novo</button>
             </>
           )}

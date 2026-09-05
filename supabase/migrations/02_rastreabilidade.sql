@@ -24,4 +24,4 @@ create table if not exists public.user_events (
   created_at timestamptz default now()
 );
 create index if not exists idx_events_device on public.user_events(device_id, evento, created_at desc);
-grant all on public.user_events to service_role;
+grant all on public.user_events to service_role;    

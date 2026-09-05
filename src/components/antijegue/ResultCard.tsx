@@ -42,16 +42,34 @@ export function ResultCard({
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/50"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs"
         >
-          {copied ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? "Copiado" : "Copiar"}
         </button>
       </div>
+
       {open && (
-        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-          {content}
-        </p>
+        <>
+          <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
+
+          {/* FIX DA CAIXA BRANCA - antes era bg-white */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("gerar-variacao"))}
+              className="rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white dark:bg-white dark:text-black"
+            >
+              Gerar variação (1 crédito)
+            </button>
+            <a
+              href="/biblioteca"
+              className="rounded-full border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700"
+            >
+              Ver Biblioteca
+            </a>
+          </div>
+        </>
       )}
     </div>
   );

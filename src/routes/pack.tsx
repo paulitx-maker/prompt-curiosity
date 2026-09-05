@@ -4,37 +4,47 @@ import { Copy, Search, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useDeviceId } from "@/hooks/use-device-id";
+import { useTracking } from "@/hooks/use-tracking";
+import { useCredits } from "@/hooks/use-credits";
 
 export const Route = createFileRoute("/pack")({ component: PackPage });
 
 interface Produto { id: string; titulo: string | null; prompt: string | null; categoria: string | null; preco: number | string | null; slug: string | null; ativo: boolean | null; }
 
-function getDeviceId() {
-  if (typeof window === "undefined") return "server";
-  let id = localStorage.getItem("device_id");
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem("device_id", id); }
-  return id;
-}
-
-async function logIntencao(produto: Produto, etapa: string) {
-  await supabase.from("intencoes_compra").insert({ device_id: getDeviceId(), produto_id: produto.id, categoria: produto.categoria, etapa } as any);
-}
-
 function PackPage() {
+  const { getId } = useDeviceId();
+  const { track } = useTracking();
+  const { consume } = useCredits();
+
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoria, setCategoria] = useState("Todas");
   const [busca, setBusca] = useState("");
   const [avaliando, setAvaliando] = useState<Produto | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [credits, setCredits] = useState<number>(0);
+  const [consuming, setConsuming] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase.from("produtos").select("*").eq("ativo", true).order("created_at", { ascending: false });
+      const dId = getId();
+      const [{ data, error }, { data: u }] = await Promise.all([
+        supabase.from("produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
+        supabase.from("users").select("credits").eq("device_id", dId).single()
+      ]);
       if (error) setErro(error.message);
       setProdutos((data as any) || []);
+      setCredits(u?.credits?? 0);
       setLoading(false);
+      track('view_pack', { metadata: { total: data?.length } } as any);
     })();
+    const h = async () => {
+      const { data } = await supabase.from("users").select("credits").eq("device_id", getId()).single();
+      if(data) setCredits(data.credits);
+    };
+    window.addEventListener("credits-updated", h);
+    return () => window.removeEventListener("credits-updated", h);
   }, []);
 
   const categorias = useMemo(() => {
@@ -51,20 +61,55 @@ function PackPage() {
     });
   }, [produtos, categoria, busca]);
 
-  const copiar = async (p: Produto) => {
-    const dId = getDeviceId();
-    const { data: u } = await supabase.from("users").select("credits").eq("device_id", dId).single();
-
-    if (!u || u.credits <= 0) {
-      window.dispatchEvent(new Event("abrir-paywall")); // abre o mesmo sheet da HOME
-      return;
+  // LOCAL - igual FotoPost, o index.tsx vai substituir se tiver orquestrador
+  const gastarCreditoLocal = async (tipo: string = 'copia_pack') => {
+    const dId = getId();
+    if (credits <= 0) {
+      await track('click_copiar_bloqueado' as any, { tipo });
+      window.dispatchEvent(new Event("abrir-paywall"));
+      throw new Error("SEM_CREDITO");
     }
+    // seu charge_credit atomico
+    const { data: novoSaldo, error } = await supabase.rpc('charge_credit', { _device_id: dId, _custo: 1 } as any);
+    if (error || novoSaldo === null || novoSaldo < 0) {
+      window.dispatchEvent(new Event("abrir-paywall"));
+      throw new Error("SEM_CREDITO");
+    }
+    setCredits(novoSaldo);
+    window.dispatchEvent(new Event("credits-updated"));
+    return novoSaldo;
+  };
 
-    await navigator.clipboard.writeText(p.prompt || "");
-    toast.success("Prompt copiado!");
-    await logIntencao(p, 'copiou');
-    setTimeout(() => setAvaliando(p), 600);
-  }
+  const copiar = async (p: Produto) => {
+    if (consuming) return;
+    const dId = getId();
+    const fullText = p.prompt || "";
+
+    try {
+      setConsuming(p.id);
+      // A LINHA QUE VOCÊ PEDIU - ORQUESTRADOR OU LOCAL
+      const gastar = (window as any).orquestradorGastarCredito || gastarCreditoLocal;
+      const novoSaldo = await gastar('copia_pack');
+
+      await track('click_copiar_full', { pack_id: p.id } as any);
+
+      await supabase.from('credit_transactions').insert({
+        device_id: dId, tipo: 'consumo_copia', pack_id: p.id, prompt_id: p.id, qtd: -1, saldo_antes: credits, saldo_depois: novoSaldo?? credits -1
+      } as any);
+
+      await navigator.clipboard.writeText(fullText);
+      toast.success("Prompt COMPLETO copiado! 🔥");
+      setTimeout(() => setAvaliando(p), 600);
+    } catch (e: any) {
+      if (e.message === 'SEM_CREDITO') {
+        toast.error("Sem créditos. Desbloqueie por R$1,99");
+      } else {
+        toast.error(e.message);
+      }
+    } finally {
+      setConsuming(null);
+    }
+  };
 
   if (loading) return <div className="p-10 text-center text-sm">Carregando pack...</div>;
 
@@ -72,7 +117,7 @@ function PackPage() {
     <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pb-28 pt-10">
       <header className="space-y-3 text-center">
         <h1 className="text-3xl font-bold">Brazilian Prompt Pack</h1>
-        <p className="text-sm text-muted-foreground">Copie e cole no ChatGPT, Claude, Gemini - A partir de R$4,90</p>
+        <p className="text-sm text-muted-foreground">Créditos: {credits} - A partir de R$4,90</p>
         {erro && <p className="text-xs text-red-400 p-3 border border-red-500/30 rounded-xl">Erro: {erro}</p>}
       </header>
       <div className="mt-8 flex flex-wrap gap-2">
@@ -91,7 +136,9 @@ function PackPage() {
             <h2 className="font-bold line-clamp-2">{p.titulo}</h2>
             <p className="flex-1 text-xs text-muted-foreground line-clamp-3">{(p.prompt || "").slice(0, 120)}...</p>
             <p className="text-sm font-semibold">R$ {Number(p.preco || 0).toFixed(2)}</p>
-            <button onClick={() => copiar(p)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white"><Copy className="h-4 w-4" />Copiar Prompt</button>
+            <button disabled={consuming === p.id} onClick={() => copiar(p)} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+              <Copy className="h-4 w-4" />{consuming === p.id? "..." : "Copiar Prompt"}
+            </button>
           </article>
         ))}
       </div>
@@ -104,12 +151,13 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
   const [nota, setNota] = useState(0);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const { getId } = useDeviceId();
   const enviar = async () => {
     if (nota === 0) return;
     setEnviando(true);
-    const { error } = await supabase.from("feedbacks").insert({ device_id: getDeviceId(), execution_id: null, nota, o_que_faltou: texto.trim() || null } as any);
+    const { error } = await supabase.from("feedbacks").insert({ device_id: getId(), execution_id: null, nota, o_que_faltou: texto.trim() || null } as any);
     if (error) toast.error("Erro: " + error.message);
-    else { await logIntencao(produto, `avaliou_nota_${nota}`); toast.success("Obrigado!"); onClose(); }
+    else { toast.success("Obrigado!"); onClose(); }
     setEnviando(false);
   };
   return (
@@ -118,7 +166,9 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
         <div className="flex justify-between items-center"><h3 className="font-bold text-sm">Gostou de {produto.titulo}?</h3><button onClick={onClose}><X className="h-5 w-5" /></button></div>
         <div className="flex justify-center gap-1.5">{[1,2,3,4,5].map(n => (<button key={n} onClick={() => setNota(n)}><Star className={cn("h-8 w-8 transition", nota >= n? "fill-yellow-400 text-yellow-400" : "text-muted-foreground")} /></button>))}</div>
         {nota > 0 && nota <= 3 && (<div className="space-y-2"><label className="text-xs text-muted-foreground">O que faltou?</label><textarea value={texto} onChange={e => setTexto(e.target.value)} placeholder="Me diz o que podemos melhorar..." className="w-full rounded-xl border bg-background p-3 text-sm min-h-[80px]" /></div>)}
-        <button disabled={nota===0 || enviando} onClick={enviar} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">{enviando? "Enviando..." : "Enviar avaliação"}</button>
+        {/* FIX QUADRO BRANCO - texto preto legivel */}
+        <button disabled={nota===0 || enviando} onClick={enviar} className="w-full rounded-xl bg-black text-white dark:bg-white dark:text-black px-4 py-3 text-sm font-semibold disabled:opacity-40">{enviando? "Enviando..." : "Enviar avaliação"}</button>
+        <button onClick={onClose} className="w-full rounded-xl border border-border bg-transparent py-2.5 text-sm">Cancelar</button>
       </div>
     </div>
   );

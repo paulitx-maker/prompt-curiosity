@@ -42,7 +42,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <ClientInit />
-      <header className="sticky top-0 z-50 flex justify-between items-center px-4 py-3 border-b bg-white/80 backdrop-blur">
+      <header className="flex w-full items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-700">
         <span className="font-black tracking-tight">ANTI-JEGUE</span>
         {deviceId && <CreditsBadge deviceId={deviceId} />}
       </header>
