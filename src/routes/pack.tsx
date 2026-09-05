@@ -4,19 +4,25 @@ import { Copy, Search, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useDeviceId } from "@/hooks/use-device-id";
+import { getDeviceId } from "@/lib/device";
 import { useTracking } from "@/hooks/use-tracking";
-import { useCredits } from "@/hooks/use-credits";
 
 export const Route = createFileRoute("/pack")({ component: PackPage });
 
 interface Produto { id: string; titulo: string | null; prompt: string | null; categoria: string | null; preco: number | string | null; slug: string | null; ativo: boolean | null; }
 
-function PackPage() {
-  const { getId } = useDeviceId();
-  const { track } = useTracking();
-  const { consume } = useCredits();
+async function fetchCredits(dId: string) {
+  const r = await fetch('/api/ensure-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ device_id: dId })
+  });
+  if(!r.ok) throw new Error('ensure_user_failed');
+  return await r.json() as { credits: number };
+}
 
+function PackPage() {
+  const { track } = useTracking();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoria, setCategoria] = useState("Todas");
@@ -28,20 +34,23 @@ function PackPage() {
 
   useEffect(() => {
     (async () => {
-      const dId = getId();
-      const [{ data, error }, { data: u }] = await Promise.all([
+      const dId = getDeviceId();
+      const [prodRes, userRes] = await Promise.all([
         supabase.from("produtos").select("*").eq("ativo", true).order("created_at", { ascending: false }),
-        supabase.from("users").select("credits").eq("device_id", dId).single()
+        fetchCredits(dId).catch(() => ({ credits: 0 }))
       ]);
-      if (error) setErro(error.message);
-      setProdutos((data as any) || []);
-      setCredits(u?.credits?? 0);
+      if (prodRes.error) setErro(prodRes.error.message);
+      setProdutos((prodRes.data as any) || []);
+      setCredits(userRes?.credits?? 0);
       setLoading(false);
-      track('view_pack', { metadata: { total: data?.length } } as any);
+      track('view_pack', { metadata: { total: prodRes.data?.length } } as any);
     })();
+
     const h = async () => {
-      const { data } = await supabase.from("users").select("credits").eq("device_id", getId()).single();
-      if(data) setCredits(data.credits);
+      try {
+        const u = await fetchCredits(getDeviceId());
+        if(u) setCredits(u.credits);
+      } catch {}
     };
     window.addEventListener("credits-updated", h);
     return () => window.removeEventListener("credits-updated", h);
@@ -61,9 +70,8 @@ function PackPage() {
     });
   }, [produtos, categoria, busca]);
 
-  // FIX: recebe packId pra não ficar null no log
   const gastarCreditoLocal = async (tipo: string = 'copia_pack', packId?: string) => {
-    const dId = getId();
+    const dId = getDeviceId();
     if (credits <= 0) {
       await track('click_copiar_bloqueado' as any, { pack_id: packId, tipo });
       window.dispatchEvent(new Event("abrir-paywall"));
@@ -71,7 +79,6 @@ function PackPage() {
     }
     const { data: novoSaldo, error } = await supabase.rpc('charge_credit', { _device_id: dId, _custo: 1 } as any);
     if (error || novoSaldo === null || novoSaldo < 0) {
-      // não dispara paywall de novo pra não duplicar toast
       throw new Error("SEM_CREDITO");
     }
     setCredits(novoSaldo);
@@ -81,21 +88,16 @@ function PackPage() {
 
   const copiar = async (p: Produto) => {
     if (consuming) return;
-    const dId = getId();
+    const dId = getDeviceId();
     const fullText = p.prompt || "";
-
     try {
       setConsuming(p.id);
       const gastar = (window as any).orquestradorGastarCredito || gastarCreditoLocal;
-      // FIX: passa pack id
       const novoSaldo = await gastar('copia_pack', p.id);
-
       await track('click_copiar_full', { pack_id: p.id } as any);
-
       await supabase.from('credit_transactions').insert({
         device_id: dId, tipo: 'consumo_copia', pack_id: p.id, prompt_id: p.id, qtd: -1, saldo_antes: credits, saldo_depois: novoSaldo?? credits -1
       } as any);
-
       await navigator.clipboard.writeText(fullText);
       toast.success("Prompt COMPLETO copiado! 🔥");
       setTimeout(() => setAvaliando(p), 600);
@@ -150,11 +152,12 @@ function RatingModal({ produto, onClose }: { produto: Produto; onClose: () => vo
   const [nota, setNota] = useState(0);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const { getId } = useDeviceId();
+
   const enviar = async () => {
     if (nota === 0) return;
     setEnviando(true);
-    const { error } = await supabase.from("feedbacks").insert({ device_id: getId(), execution_id: null, nota, o_que_faltou: texto.trim() || null } as any);
+    const dId = getDeviceId();
+    const { error } = await supabase.from("feedbacks").insert({ device_id: dId, execution_id: null, nota, o_que_faltou: texto.trim() || null } as any);
     if (error) toast.error("Erro: " + error.message);
     else { toast.success("Obrigado!"); onClose(); }
     setEnviando(false);

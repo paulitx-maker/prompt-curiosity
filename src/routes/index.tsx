@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Image as ImageIcon, Lock, Mic, Sparkles, RefreshCw, Zap } from "lucide-react";
+import { Image as ImageIcon, Mic, Sparkles, RefreshCw, Zap } from "lucide-react";
 import { FotoPost } from "@/components/antijegue/FotoPost";
 import { AudioResumo } from "@/components/antijegue/AudioResumo";
 import { BottomNav } from "@/components/BottomNav";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useDeviceId } from "@/hooks/use-device-id";
+import { getDeviceId } from '@/lib/device'
 import { useTracking } from "@/hooks/use-tracking";
 import { useCredits } from "@/hooks/use-credits";
 
@@ -19,14 +19,21 @@ function Index() {
   const [credits, setCredits] = useState<number>(99);
   const [consuming, setConsuming] = useState(false);
 
-  const { getId } = useDeviceId();
   const { track } = useTracking();
-  const { consume } = useCredits() as any; // seu hook real
+  const { consume } = useCredits() as any;
 
   const loadCredits = async () => {
-    const dId = getId();
-    const { data } = await supabase.from("users").select("credits").eq("device_id", dId).single();
-    if (data) setCredits(data.credits);
+    const dId = getDeviceId();
+    if(!dId) return;
+    try {
+      const res = await fetch('/api/ensure-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: dId })
+      });
+      const data = await res.json();
+      if (data?.credits!== undefined) setCredits(data.credits);
+    } catch {}
   };
 
   useEffect(() => {
@@ -44,7 +51,7 @@ function Index() {
   async function gastarCredito(tipo: 'geracao_post' | 'variacao' = 'geracao_post') {
     if (consuming) return;
     setConsuming(true);
-    const dId = getId();
+    const dId = getDeviceId();
     try {
       const hoje = new Date().toISOString().slice(0,10);
       const { count } = await supabase.from("executions").select("*", { count: "exact", head: true }).eq("device_id", dId).gte("created_at", `${hoje}T00:00:00`);
@@ -57,9 +64,7 @@ function Index() {
         window.dispatchEvent(new Event("abrir-paywall"));
         throw new Error("SEM_CREDITO");
       }
-      // usa seu hook que já faz charge_credit + credit_transactions
-      await consume(tipo === 'variacao' ? 'consumo_variacao' : 'consumo_geracao', 'gerar-page', undefined);
-      await supabase.from("executions").insert({ device_id: dId, tipo } as any);
+      await consume(tipo === 'variacao'? 'consumo_variacao' : 'consumo_geracao', 'gerar-page', undefined);
       await loadCredits();
       window.dispatchEvent(new Event("credits-updated"));
     } finally {
@@ -94,8 +99,8 @@ function Index() {
         <button onClick={() => setTab("audio")} className={cn("flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-medium transition-all", tab==="audio"? "bg-gradient-neon text-white glow-soft" : "text-muted-foreground")}><Mic className="h-4 w-4" />Áudio → Resumo</button>
       </nav>
       <section className="mt-7">
-        <div className={tab !== "foto" ? "hidden" : ""}><FotoPost /></div>
-        <div className={tab !== "audio" ? "hidden" : ""}><AudioResumo /></div>
+        <div className={tab!== "foto"? "hidden" : ""}><FotoPost /></div>
+        <div className={tab!== "audio"? "hidden" : ""}><AudioResumo /></div>
       </section>
       {lastPost && (
         <section className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">

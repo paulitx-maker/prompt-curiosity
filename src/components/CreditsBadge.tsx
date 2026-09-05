@@ -10,31 +10,38 @@ export function CreditsBadge({ deviceId }: Props) {
   const LIMITE = 10
 
   async function load() {
-    const { data: user } = await supabase
-     .from('users')
-     .select('credits')
-     .eq('device_id', deviceId)
-     .single()
-
-    if (user) {
-      if (credits!== null && user.credits < credits) {
-        setAnimating(true)
-        setTimeout(() => setAnimating(false), 600)
+    try {
+      // TROCA: não lê users direto, usa API com service_role
+      const r = await fetch('/api/ensure-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: deviceId })
+      })
+      if(r.ok) {
+        const user = await r.json() as { credits: number }
+        if (user) {
+          if (credits!== null && user.credits < credits) {
+            setAnimating(true)
+            setTimeout(() => setAnimating(false), 600)
+          }
+          setCredits(user.credits)
+        }
       }
-      setCredits(user.credits)
-    }
+    } catch {}
 
+    // executions pode continuar no client se a RLS permitir
     const hoje = new Date().toISOString().slice(0,10)
     const { count } = await supabase
-     .from('executions')
-     .select('*', { count: 'exact', head: true })
-     .eq('device_id', deviceId)
-     .gte('created_at', `${hoje}T00:00:00`)
+    .from('executions')
+    .select('*', { count: 'exact', head: true })
+    .eq('device_id', deviceId)
+    .gte('created_at', `${hoje}T00:00:00`)
 
     setUsosHoje(count || 0)
   }
 
   useEffect(() => {
+    if(!deviceId) return
     load()
     const interval = setInterval(load, 3000)
     window.addEventListener('credits-updated', load)
