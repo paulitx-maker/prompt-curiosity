@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 export interface PostImagemInput {
   imageBase64: string;
+  fileBase64?: string;
   mimeType: string;
   deviceId?: string;
   fileName?: string;

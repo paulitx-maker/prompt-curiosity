@@ -1,71 +1,64 @@
-// src/lib/antijegue.server.ts - VERSÃO FINAL REAL - SEM MOCK
+// src/lib/antijegue.server.ts - FINAL DEFINITIVO (antigo + 4 bugs do Claude)
 import { createClient } from "@supabase/supabase-js";
 
 function supabaseAdmin() {
   const env = process.env as any;
   const url = env['SUPABASE_URL'] || env['VITE_SUPABASE_URL'];
   const key = env['SUPABASE_SERVICE_ROLE_KEY'] || env['SUPABASE_SERVICE_KEY'];
-  if (!url ||!key) throw new Error("SUPABASE keys missing - use SERVICE_ROLE");
+  if (!url || !key) throw new Error("SUPABASE keys missing - use SERVICE_ROLE");
   return createClient(url, key, { auth: { persistSession: false } });
+}
+
+async function checkLimite10(deviceId: string) {
+  const supa = supabaseAdmin();
+  const hoje = `${new Date().toISOString().slice(0,10)}T00:00:00`;
+  const { count } = await supa.from("executions")
+    .select("*", { count: "exact", head: true })
+    .eq("device_id", deviceId)
+    .gte("created_at", hoje);
+  if ((count || 0) >= 10) throw new Error("LIMITE");
+}
+
+async function cobraCreditoRPC(deviceId: string, custoUsd: number) {
+  const supa = supabaseAdmin();
+  const { data, error } = await supa.rpc("charge_credit", { _device_id: deviceId, _custo: custoUsd });
+  if (error || data === null) throw new Error("SEM_CREDITO");
+  return data as number;
 }
 
 export async function ensureUser(deviceId: string) {
   const supa = supabaseAdmin();
   const { data: existing } = await supa.from("users").select("*").eq("device_id", deviceId).maybeSingle();
   if (existing) return existing;
-  const { data: created, error } = await supa.from("users").insert({
-    device_id: deviceId,
-    credits: 10,
-    total_gasto_usd: 0,
-    total_gasto_brl: 0,
-  }).select("*").single();
+  const { data: created, error } = await supa.from("users").insert({ device_id: deviceId, credits: 10, total_gasto_usd: 0 }).select("*").single();
   if (error) {
-    const { data: retry } = await supa.from("users").select("*").eq("device_id", deviceId).single();
+    const { data: retry } = await supa.from("users").select("*").eq("device_id", deviceId).maybeSingle();
     if (retry) return retry;
     throw error;
   }
+  if (!created) throw new Error("ensureUser falhou");
   return created;
 }
 
 export async function logExecution(data: any) {
   const supa = supabaseAdmin();
   const payload = {
-    device_id: data.deviceId,
-    user_id: data.userId || null,
-    tipo: data.tipo,
-    file_name: data.fileName?? null,
-    modelo_usado: data.modeloUsado,
-    custo_usd: data.custoUsd?? 0,
-    tema_extraido: data.temaExtraido?? null,
-    prompt_final: data.promptFinal?? null,
-    post_gerado: data.postGerado?? null,
-    transcricao: data.transcricao?? null,
-    resumo: data.resumo?? null,
-    pode_usar_publico: data.podeUsarPublico?? false,
+    device_id: data.deviceId, user_id: data.userId || null, tipo: data.tipo,
+    file_name: data.fileName ?? null, modelo_usado: data.modeloUsado,
+    custo_usd: data.custoUsd ?? 0, tema_extraido: data.temaExtraido ?? null,
+    prompt_final: data.promptFinal ?? null, post_gerado: data.postGerado ?? null,
+    transcricao: data.transcricao ?? null, resumo: data.resumo ?? null,
+    pode_usar_publico: data.podeUsarPublico ?? false,
   };
   const { data: row, error } = await supa.from("executions").insert(payload).select("id").single();
   if (error) { console.error("logExecution", error, payload); throw error; }
+  if (!row) throw new Error("logExecution retornou null");
   return row.id;
-}
-
-export async function chargeCredit(deviceId: string) {
-  const supa = supabaseAdmin();
-  const { data: user } = await supa.from("users").select("*").eq("device_id", deviceId).single();
-  if (!user) return 0;
-  if ((user.credits?? 0) <= 0) throw new Error("SEM_CREDITOS");
-  const newCredits = Math.max(0, (user.credits?? 0) - 1);
-  await supa.from("users").update({ credits: newCredits }).eq("device_id", deviceId);
-  return newCredits;
 }
 
 export async function saveFeedback(executionId: string, deviceId: string, nota: number, oQueFaltou?: string) {
   const supa = supabaseAdmin();
-  const { error } = await supa.from("feedbacks").insert({
-    execution_id: executionId,
-    device_id: deviceId,
-    nota,
-    o_que_faltou: oQueFaltou?? null,
-  });
+  const { error } = await supa.from("feedbacks").insert({ execution_id: executionId, device_id: deviceId, nota, o_que_faltou: oQueFaltou ?? null });
   if (error) { console.error("saveFeedback", error); return false; }
   return true;
 }
@@ -80,93 +73,102 @@ export async function updateConsent(executionId: string, podeUsar: boolean) {
 async function callOpenRouter(prompt: string, imageBase64?: string) {
   const env = process.env as any;
   const apiKey = env['OPENROUTER_API_KEY'] || env['VITE_OPENROUTER_API_KEY'];
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY missing no.env");
-
-  const messages: any[] = [{
-    role: "user",
-    content: imageBase64? [
-      { type: "text", text: prompt },
-      { type: "image_url", image_url: { url: imageBase64 } }
-    ] : prompt
-  }];
-
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY missing no .env");
+  const content = imageBase64
+    ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }]
+    : prompt;
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://antijegue.app",
-      "X-Title": "AntiJegue MVP"
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
-      provider: { allow_fallbacks: false, require_parameters: true, data_collection: "deny" },
-      messages
-    })
+    headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://antijegue.app", "X-Title": "AntiJegue MVP" },
+    body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content }], provider: { allow_fallbacks: false } })
   });
-
-  if (!res.ok) {
-    const t = await res.text();
-    console.error("OpenRouter FAIL", res.status, t);
-    throw new Error(`AI_PROVIDER_ERROR ${res.status}`);
-  }
+  if (!res.ok) { const t = await res.text(); console.error("OpenRouter FAIL", res.status, t); throw new Error(`AI_PROVIDER_ERROR ${res.status} ${t.slice(0,300)}`); }
   const json = await res.json();
-  return json.choices?.[0]?.message?.content?? "";
+  return { text: json.choices?.[0]?.message?.content ?? "", usage: json.usage };
 }
 
 export async function runPostImagem(data: any) {
+  let chargeLogId: string | null = null;
+  let custoCobrado = 0.0006;
+  let custoAplicado = custoCobrado; // BUG 4 FIX: rastreia custo real aplicado
   const deviceId = data.deviceId;
-  if (!deviceId) throw new Error("deviceId missing");
-  const user = await ensureUser(deviceId);
-  if ((user.credits?? 0) <= 0) throw new Error("Sem créditos");
+  try {
+    if (!deviceId) return { ok: false, message: "deviceId missing" };
+    const image = data.imageBase64 || data.fileBase64;
+    if (!image) return { ok: false, message: "imageBase64 missing" };
+    if (image.length > 10_000_000) return { ok: false, message: "file_too_large" };
+    if (!process.env.OPENROUTER_API_KEY && !(process.env as any).VITE_OPENROUTER_API_KEY) return { ok: false, message: "missing_api_key" };
 
-  const image = data.imageBase64 || data.fileBase64;
-  if (!image) throw new Error("imageBase64 missing");
+    await checkLimite10(deviceId);
+    const user = await ensureUser(deviceId);
+    if ((user.credits ?? 0) <= 0) return { ok: false, message: "SEM_CREDITO" };
 
-  const prompt = `Você é copywriter anti-jegue. Crie um POST para ${data.answers.plataforma} com tom ${data.answers.tom}. Objetivo: ${data.answers.manterTexto}. Regras: sem jargão, frases curtas, CTA no final. Arquivo: ${data.fileName}. Responda só o post pronto em PT-BR.`;
+    const saldoAntes = await cobraCreditoRPC(deviceId, custoCobrado);
+    const { data: logRow } = await supabaseAdmin().from("charge_log").insert({ device_id: deviceId, custo: custoCobrado, tipo: "foto_post", estornado: false }).select("id").single();
+    chargeLogId = logRow?.id ?? null;
 
-  const post = await callOpenRouter(prompt, image);
-  
-  const execId = await logExecution({
-    deviceId, userId: user.id, fileName: data.fileName,
-    tipo: "foto_post", modeloUsado: "google/gemini-2.5-flash-lite",
-    custoUsd: 0.0006, temaExtraido: data.answers.plataforma,
-    promptFinal: prompt, postGerado: post,
-  });
+    const prompt = `Você é copywriter anti-jegue. Crie um POST para ${data.answers.plataforma} com tom ${data.answers.tom}. Objetivo: ${data.answers.manterTexto}. Regras: sem jargão, frases curtas, CTA no final. Arquivo: ${data.fileName}. Responda só o post pronto em PT-BR.`;
+    const result = await callOpenRouter(prompt, image);
 
-  const remaining = await chargeCredit(deviceId);
-  return { ok: true, executionId: execId, post, post_gerado: post, custo_estimado: 0.0006, custo_usd: 0.0006, creditosRestantes: remaining, credits: remaining };
+    const custoReal = result.usage ? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
+    if (Math.abs(custoReal - custoCobrado) > 0.0000001) {
+      await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: custoReal - custoCobrado });
+      custoAplicado = custoReal;
+    }
+
+    const execId = await logExecution({ deviceId, userId: user.id, fileName: data.fileName, tipo: "foto_post", modeloUsado: "google/gemini-2.5-flash-lite", custoUsd: custoReal, temaExtraido: data.answers.plataforma, promptFinal: prompt, postGerado: result.text });
+    return { ok: true, executionId: execId, post: result.text, post_gerado: result.text, custo_estimado: custoReal, custo_usd: custoReal, creditosRestantes: saldoAntes, credits: saldoAntes };
+  } catch (e: any) {
+    if (e.message === "LIMITE" || e.message === "SEM_CREDITO") return { ok: false, message: e.message };
+    if (chargeLogId) {
+      await supabaseAdmin().from("charge_log").update({ estornado: true }).eq("id", chargeLogId);
+      await supabaseAdmin().rpc("refund_credit", { _device_id: deviceId });
+      await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: -custoAplicado });
+    }
+    throw e;
+  }
 }
 
 export async function runAudioResumo(data: any) {
+  let chargeLogId: string | null = null;
+  let custoCobrado = 0.0008;
+  let custoAplicado = custoCobrado;
   const deviceId = data.deviceId;
-  if (!deviceId) throw new Error("deviceId missing");
-  const user = await ensureUser(deviceId);
-  if ((user.credits?? 0) <= 0) throw new Error("Sem créditos");
+  try {
+    if (!deviceId) return { ok: false, message: "deviceId missing" };
+    await checkLimite10(deviceId);
+    const user = await ensureUser(deviceId);
+    if ((user.credits ?? 0) <= 0) return { ok: false, message: "SEM_CREDITO" };
 
-  const prompt = `Transcreva e resuma este áudio: ${data.fileName}. Tipo de resumo: ${data.answers.resultado}, Qtd pessoas: ${data.answers.numeroPessoas}. Formato: Transcrição literal + Resumo em tópicos. PT-BR.`;
+    const saldoAntes = await cobraCreditoRPC(deviceId, custoCobrado);
+    const { data: logRow } = await supabaseAdmin().from("charge_log").insert({ device_id: deviceId, custo: custoCobrado, tipo: "audio_resumo", estornado: false }).select("id").single();
+    chargeLogId = logRow?.id ?? null;
 
-  // Gemini via OpenRouter não transcreve áudio direto ainda, então usa texto + avisa
-  // Se você tiver fileBase64 de áudio, manda como texto por enquanto
-  const resultado = await callOpenRouter(prompt);
+    const prompt = `Transcreva e resuma este áudio: ${data.fileName}. Tipo de resumo: ${data.answers.resultado}, Qtd pessoas: ${data.answers.numeroPessoas}, Ruído: ${data.answers.ruido}. Formato: Transcrição literal + Resumo em tópicos. PT-BR.`;
+    const result = await callOpenRouter(prompt);
 
-  const transcricao = resultado.slice(0, 4000);
-  const resumo = resultado;
+    const custoReal = result.usage ? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
+    if (Math.abs(custoReal - custoCobrado) > 0.0000001) {
+      await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: custoReal - custoCobrado });
+      custoAplicado = custoReal;
+    }
 
-  const execId = await logExecution({
-    deviceId, userId: user.id, fileName: data.fileName,
-    tipo: "audio_resumo", modeloUsado: "google/gemini-2.5-flash-lite",
-    custoUsd: 0.0008, temaExtraido: data.answers.numeroPessoas,
-    promptFinal: prompt, transcricao, resumo,
-  });
-
-  const remaining = await chargeCredit(deviceId);
-  return { ok: true, executionId: execId, transcricao, resumo, custo_estimado: 0.0008, custo_usd: 0.0008, creditosRestantes: remaining };
+    const execId = await logExecution({ deviceId, userId: user.id, fileName: data.fileName, tipo: "audio_resumo", modeloUsado: "google/gemini-2.5-flash-lite", custoUsd: custoReal, temaExtraido: data.answers.numeroPessoas, promptFinal: prompt, transcricao: result.text.slice(0,4000), resumo: result.text });
+    return { ok: true, executionId: execId, transcricao: result.text.slice(0,4000), resumo: result.text, custo_estimado: custoReal, custo_usd: custoReal, creditosRestantes: saldoAntes, credits: saldoAntes };
+  } catch (e: any) {
+    if (e.message === "LIMITE" || e.message === "SEM_CREDITO") return { ok: false, message: e.message };
+    if (chargeLogId) {
+      await supabaseAdmin().from("charge_log").update({ estornado: true }).eq("id", chargeLogId);
+      await supabaseAdmin().rpc("refund_credit", { _device_id: deviceId });
+      await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: -custoAplicado });
+    }
+    throw e;
+  }
 }
 
 export async function runEnviarFeedback(data: any) {
   const { executionId, deviceId, nota, oQueFaltou, podeUsarPublico } = data;
-  if (podeUsarPublico!== undefined) await updateConsent(executionId, podeUsarPublico);
+  if (podeUsarPublico !== undefined) await updateConsent(executionId, podeUsarPublico);
   const ok = await saveFeedback(executionId, deviceId, nota, oQueFaltou);
   return { ok };
 }
