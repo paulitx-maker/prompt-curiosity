@@ -5,7 +5,7 @@ function supabaseAdmin() {
   const env = process.env as any;
   const url = env['SUPABASE_URL'] || env['VITE_SUPABASE_URL'];
   const key = env['SUPABASE_SERVICE_ROLE_KEY'] || env['SUPABASE_SERVICE_KEY'];
-  if (!url || !key) throw new Error("SUPABASE keys missing - use SERVICE_ROLE");
+  if (!url ||!key) throw new Error("SUPABASE keys missing - use SERVICE_ROLE");
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
@@ -13,16 +13,20 @@ async function checkLimite10(deviceId: string) {
   const supa = supabaseAdmin();
   const hoje = `${new Date().toISOString().slice(0,10)}T00:00:00`;
   const { count } = await supa.from("executions")
-    .select("*", { count: "exact", head: true })
-    .eq("device_id", deviceId)
-    .gte("created_at", hoje);
+   .select("*", { count: "exact", head: true })
+   .eq("device_id", deviceId)
+   .gte("created_at", hoje);
   if ((count || 0) >= 10) throw new Error("LIMITE");
 }
 
 async function cobraCreditoRPC(deviceId: string, custoUsd: number) {
   const supa = supabaseAdmin();
   const { data, error } = await supa.rpc("charge_credit", { _device_id: deviceId, _custo: custoUsd });
-  if (error || data === null) throw new Error("SEM_CREDITO");
+  if (error) {
+    console.error("[cobraCreditoRPC] erro real do Postgres:", error.message);
+    throw new Error(`CHARGE_ERROR: ${error.message}`);
+  }
+  if (data === null) throw new Error("SEM_CREDITO");
   return data as number;
 }
 
@@ -44,11 +48,11 @@ export async function logExecution(data: any) {
   const supa = supabaseAdmin();
   const payload = {
     device_id: data.deviceId, user_id: data.userId || null, tipo: data.tipo,
-    file_name: data.fileName ?? null, modelo_usado: data.modeloUsado,
-    custo_usd: data.custoUsd ?? 0, tema_extraido: data.temaExtraido ?? null,
-    prompt_final: data.promptFinal ?? null, post_gerado: data.postGerado ?? null,
-    transcricao: data.transcricao ?? null, resumo: data.resumo ?? null,
-    pode_usar_publico: data.podeUsarPublico ?? false,
+    file_name: data.fileName?? null, modelo_usado: data.modeloUsado,
+    custo_usd: data.custoUsd?? 0, tema_extraido: data.temaExtraido?? null,
+    prompt_final: data.promptFinal?? null, post_gerado: data.postGerado?? null,
+    transcricao: data.transcricao?? null, resumo: data.resumo?? null,
+    pode_usar_publico: data.podeUsarPublico?? false,
   };
   const { data: row, error } = await supa.from("executions").insert(payload).select("id").single();
   if (error) { console.error("logExecution", error, payload); throw error; }
@@ -58,7 +62,7 @@ export async function logExecution(data: any) {
 
 export async function saveFeedback(executionId: string, deviceId: string, nota: number, oQueFaltou?: string) {
   const supa = supabaseAdmin();
-  const { error } = await supa.from("feedbacks").insert({ execution_id: executionId, device_id: deviceId, nota, o_que_faltou: oQueFaltou ?? null });
+  const { error } = await supa.from("feedbacks").insert({ execution_id: executionId, device_id: deviceId, nota, o_que_faltou: oQueFaltou?? null });
   if (error) { console.error("saveFeedback", error); return false; }
   return true;
 }
@@ -73,9 +77,9 @@ export async function updateConsent(executionId: string, podeUsar: boolean) {
 async function callOpenRouter(prompt: string, imageBase64?: string) {
   const env = process.env as any;
   const apiKey = env['OPENROUTER_API_KEY'] || env['VITE_OPENROUTER_API_KEY'];
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY missing no .env");
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY missing no.env");
   const content = imageBase64
-    ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }]
+   ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64.startsWith('data:')? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }]
     : prompt;
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -84,33 +88,33 @@ async function callOpenRouter(prompt: string, imageBase64?: string) {
   });
   if (!res.ok) { const t = await res.text(); console.error("OpenRouter FAIL", res.status, t); throw new Error(`AI_PROVIDER_ERROR ${res.status} ${t.slice(0,300)}`); }
   const json = await res.json();
-  return { text: json.choices?.[0]?.message?.content ?? "", usage: json.usage };
+  return { text: json.choices?.[0]?.message?.content?? "", usage: json.usage };
 }
 
 export async function runPostImagem(data: any) {
   let chargeLogId: string | null = null;
   let custoCobrado = 0.0006;
-  let custoAplicado = custoCobrado; // BUG 4 FIX: rastreia custo real aplicado
+  let custoAplicado = custoCobrado;
   const deviceId = data.deviceId;
   try {
     if (!deviceId) return { ok: false, message: "deviceId missing" };
     const image = data.imageBase64 || data.fileBase64;
     if (!image) return { ok: false, message: "imageBase64 missing" };
     if (image.length > 10_000_000) return { ok: false, message: "file_too_large" };
-    if (!process.env.OPENROUTER_API_KEY && !(process.env as any).VITE_OPENROUTER_API_KEY) return { ok: false, message: "missing_api_key" };
+    if (!process.env.OPENROUTER_API_KEY &&!(process.env as any).VITE_OPENROUTER_API_KEY) return { ok: false, message: "missing_api_key" };
 
     await checkLimite10(deviceId);
     const user = await ensureUser(deviceId);
-    if ((user.credits ?? 0) <= 0) return { ok: false, message: "SEM_CREDITO" };
+    if ((user.credits?? 0) <= 0) return { ok: false, message: "SEM_CREDITO" };
 
     const saldoAntes = await cobraCreditoRPC(deviceId, custoCobrado);
     const { data: logRow } = await supabaseAdmin().from("charge_log").insert({ device_id: deviceId, custo: custoCobrado, tipo: "foto_post", estornado: false }).select("id").single();
-    chargeLogId = logRow?.id ?? null;
+    chargeLogId = logRow?.id?? null;
 
     const prompt = `Você é copywriter anti-jegue. Crie um POST para ${data.answers.plataforma} com tom ${data.answers.tom}. Objetivo: ${data.answers.manterTexto}. Regras: sem jargão, frases curtas, CTA no final. Arquivo: ${data.fileName}. Responda só o post pronto em PT-BR.`;
     const result = await callOpenRouter(prompt, image);
 
-    const custoReal = result.usage ? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
+    const custoReal = result.usage? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
     if (Math.abs(custoReal - custoCobrado) > 0.0000001) {
       await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: custoReal - custoCobrado });
       custoAplicado = custoReal;
@@ -138,16 +142,16 @@ export async function runAudioResumo(data: any) {
     if (!deviceId) return { ok: false, message: "deviceId missing" };
     await checkLimite10(deviceId);
     const user = await ensureUser(deviceId);
-    if ((user.credits ?? 0) <= 0) return { ok: false, message: "SEM_CREDITO" };
+    if ((user.credits?? 0) <= 0) return { ok: false, message: "SEM_CREDITO" };
 
     const saldoAntes = await cobraCreditoRPC(deviceId, custoCobrado);
     const { data: logRow } = await supabaseAdmin().from("charge_log").insert({ device_id: deviceId, custo: custoCobrado, tipo: "audio_resumo", estornado: false }).select("id").single();
-    chargeLogId = logRow?.id ?? null;
+    chargeLogId = logRow?.id?? null;
 
     const prompt = `Transcreva e resuma este áudio: ${data.fileName}. Tipo de resumo: ${data.answers.resultado}, Qtd pessoas: ${data.answers.numeroPessoas}, Ruído: ${data.answers.ruido}. Formato: Transcrição literal + Resumo em tópicos. PT-BR.`;
     const result = await callOpenRouter(prompt);
 
-    const custoReal = result.usage ? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
+    const custoReal = result.usage? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
     if (Math.abs(custoReal - custoCobrado) > 0.0000001) {
       await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: custoReal - custoCobrado });
       custoAplicado = custoReal;
@@ -168,7 +172,7 @@ export async function runAudioResumo(data: any) {
 
 export async function runEnviarFeedback(data: any) {
   const { executionId, deviceId, nota, oQueFaltou, podeUsarPublico } = data;
-  if (podeUsarPublico !== undefined) await updateConsent(executionId, podeUsarPublico);
+  if (podeUsarPublico!== undefined) await updateConsent(executionId, podeUsarPublico);
   const ok = await saveFeedback(executionId, deviceId, nota, oQueFaltou);
   return { ok };
 }
