@@ -1,59 +1,21 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '@/integrations/supabase/client'
 
-type Props = { deviceId: string }
+type Props = { credits: number, usadoHoje: number }
 
-export function CreditsBadge({ deviceId }: Props) {
-  const [credits, setCredits] = useState<number | null>(null)
-  const [usosHoje, setUsosHoje] = useState(0)
+export function CreditsBadge({ credits, usadoHoje }: Props) {
   const [animating, setAnimating] = useState(false)
+  const [prevCredits, setPrevCredits] = useState(credits)
   const LIMITE = 10
 
-  async function load() {
-    try {
-      // TROCA: não lê users direto, usa API com service_role
-      const r = await fetch('/api/ensure-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ device_id: deviceId })
-      })
-      if(r.ok) {
-        const user = await r.json() as { credits: number }
-        if (user) {
-          if (credits!== null && user.credits < credits) {
-            setAnimating(true)
-            setTimeout(() => setAnimating(false), 600)
-          }
-          setCredits(user.credits)
-        }
-      }
-    } catch {}
-
-    // executions pode continuar no client se a RLS permitir
-    const hoje = new Date().toISOString().slice(0,10)
-    const { count } = await supabase
-    .from('executions')
-    .select('*', { count: 'exact', head: true })
-    .eq('device_id', deviceId)
-    .gte('created_at', `${hoje}T00:00:00`)
-
-    setUsosHoje(count || 0)
-  }
-
   useEffect(() => {
-    if(!deviceId) return
-    load()
-    const interval = setInterval(load, 3000)
-    window.addEventListener('credits-updated', load)
-    return () => {
-      clearInterval(interval)
-      window.removeEventListener('credits-updated', load)
+    if (credits < prevCredits) {
+      setAnimating(true)
+      setTimeout(() => setAnimating(false), 600)
     }
-  }, [deviceId])
+    setPrevCredits(credits)
+  }, [credits, prevCredits])
 
-  if (credits === null) return <div className="h-8 w-32 bg-[#1A1A23] rounded-full animate-pulse border border-white/5" />
-
-  const quaseFim = usosHoje >= 8
+  const quaseFim = usadoHoje >= 8
 
   return (
     <div className={`
@@ -66,11 +28,9 @@ export function CreditsBadge({ deviceId }: Props) {
       <span className={`tracking-wide ${animating? 'text-red-300' : 'text-[#00E5FF]'}`}>
         ⚡ {credits}
       </span>
-      <span className="text-zinc-200">
-        créditos
-      </span>
+      <span className="text-zinc-200">créditos</span>
       <span className="text-[11px] text-zinc-400 border-l border-white/10 pl-2.5 ml-0.5 font-normal">
-        {usosHoje}/{LIMITE} hoje
+        {usadoHoje}/{LIMITE} hoje
       </span>
     </div>
   )

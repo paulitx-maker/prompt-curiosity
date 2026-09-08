@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { AudioLines, Loader2, Sparkles } from "lucide-react";
 import { DropZone } from "./DropZone";
@@ -9,19 +9,11 @@ import { ResultCard } from "./ResultCard";
 import { checkAudioQuality, fileToBase64 } from "@/lib/quality";
 import { getDeviceId } from "@/lib/device";
 import { audioResumo } from "@/lib/antijegue.functions";
-import { supabase } from "@/integrations/supabase/client";
-import { useTracking } from "@/hooks/use-tracking";
 import { toast } from "sonner";
 
 type NumeroPessoas = "1" | "2" | "3_ou_mais";
 type Ruido = "limpo" | "moderado" | "muito_ruido";
 type Resultado = "transcricao_literal" | "resumo_curto" | "resumo_detalhado";
-
-async function ensureUserViaApi(device_id: string) {
-  const res = await fetch('/api/ensure-user', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ device_id }) });
-  if (!res.ok) throw new Error('Falha ensure-user');
-  return res.json();
-}
 
 export function AudioResumo() {
   const run = useServerFn(audioResumo);
@@ -39,17 +31,6 @@ export function AudioResumo() {
   const [resumo, setResumo] = useState<string | null>(null);
   const [custo, setCusto] = useState<number | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
-  const [creditsLocal, setCreditsLocal] = useState<number>(99);
-  const { track } = useTracking();
-
-  useEffect(() => {
-    const load = async () => {
-      try { const u = await ensureUserViaApi(getDeviceId()); if(u?.credits!==undefined) setCreditsLocal(u.credits); } catch {}
-    };
-    load();
-    window.addEventListener("credits-updated", load);
-    return () => window.removeEventListener("credits-updated", load);
-  }, []);
 
   const reset = () => {
     setStage(1); setFile(null); setDuration(0); setBlocked(null); setWarning(null);
@@ -68,11 +49,6 @@ export function AudioResumo() {
 
   const submit = async () => {
     if (!file || !numeroPessoas || !ruido || !resultado) return;
-    if (creditsLocal <= 0) { track('click_gerar_bloqueado' as any, { tipo: 'geracao_audio' }); window.dispatchEvent(new Event("abrir-paywall")); return; }
-    try {
-      const { count } = await supabase.from("executions").select("*", { count: "exact", head: true }).eq("device_id", getDeviceId()).gte("created_at", `${new Date().toISOString().slice(0,10)}T00:00:00`);
-      if ((count || 0) >= 10) { toast.error("Limite de 10 hoje atingido."); return; }
-    } catch {}
 
     setLoading(true); setErro(null); setStage(3);
     try {
@@ -83,8 +59,6 @@ export function AudioResumo() {
         throw new Error(res.message);
       }
       setTranscricao(res.transcricao); setResumo(res.resumo); setCusto(res.custo_estimado); setExecutionId(res.executionId ?? null);
-      const rest = res.creditosRestantes ?? res.credits ?? creditsLocal - 1;
-      setCreditsLocal(rest);
       window.dispatchEvent(new Event("credits-updated"));
     } catch (e:any) {
       if(e.message?.includes("SEM_CREDITO")) { window.dispatchEvent(new Event("abrir-paywall")); setStage(2); }
