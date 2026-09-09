@@ -1,4 +1,4 @@
-// src/lib/antijegue.server.ts - FINAL DEFINITIVO (antigo + 4 bugs do Claude)
+// src/lib/antijegue.server.ts - FINAL DEFINITIVO (antigo + 4 bugs do Claude) + FIX 429
 import { createClient } from "@supabase/supabase-js";
 
 function supabaseAdmin() {
@@ -13,9 +13,9 @@ async function checkLimite10(deviceId: string) {
   const supa = supabaseAdmin();
   const hoje = `${new Date().toISOString().slice(0,10)}T00:00:00`;
   const { count } = await supa.from("executions")
-   .select("*", { count: "exact", head: true })
-   .eq("device_id", deviceId)
-   .gte("created_at", hoje);
+  .select("*", { count: "exact", head: true })
+  .eq("device_id", deviceId)
+  .gte("created_at", hoje);
   if ((count || 0) >= 10) throw new Error("LIMITE");
 }
 
@@ -79,7 +79,7 @@ async function callOpenRouter(prompt: string, imageBase64?: string) {
   const apiKey = env['OPENROUTER_API_KEY'] || env['VITE_OPENROUTER_API_KEY'];
   if (!apiKey) throw new Error("OPENROUTER_API_KEY missing no.env");
   const content = imageBase64
-   ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64.startsWith('data:')? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }]
+  ? [{ type: "text", text: prompt }, { type: "image_url", image_url: { url: imageBase64.startsWith('data:')? imageBase64 : `data:image/jpeg;base64,${imageBase64}` } }]
     : prompt;
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -124,11 +124,24 @@ export async function runPostImagem(data: any) {
     return { ok: true, executionId: execId, post: result.text, post_gerado: result.text, custo_estimado: custoReal, custo_usd: custoReal, creditosRestantes: saldoAntes, credits: saldoAntes };
   } catch (e: any) {
     if (e.message === "LIMITE" || e.message === "SEM_CREDITO") return { ok: false, message: e.message };
+
+    // 429 OpenRouter / rate limit - mapeia para mensagem amigável
+    const isProviderOverload = e?.status === 429 || e?.message?.includes("429") || e?.message?.includes("AI_PROVIDER") || e?.message?.includes("overloaded");
+
     if (chargeLogId) {
       await supabaseAdmin().from("charge_log").update({ estornado: true }).eq("id", chargeLogId);
       await supabaseAdmin().rpc("refund_credit", { _device_id: deviceId });
       await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: -custoAplicado });
     }
+
+    if (isProviderOverload) {
+      return {
+        ok: false,
+        message: "AI_PROVIDER_ERROR",
+        error: "O modelo de IA que usamos está sobrecarregado agora. Seu crédito não foi cobrado - tenta de novo em 1 minuto."
+      };
+    }
+
     throw e;
   }
 }
@@ -161,11 +174,24 @@ export async function runAudioResumo(data: any) {
     return { ok: true, executionId: execId, transcricao: result.text.slice(0,4000), resumo: result.text, custo_estimado: custoReal, custo_usd: custoReal, creditosRestantes: saldoAntes, credits: saldoAntes };
   } catch (e: any) {
     if (e.message === "LIMITE" || e.message === "SEM_CREDITO") return { ok: false, message: e.message };
+
+    // 429 OpenRouter / rate limit - mapeia para mensagem amigável
+    const isProviderOverload = e?.status === 429 || e?.message?.includes("429") || e?.message?.includes("AI_PROVIDER") || e?.message?.includes("overloaded");
+
     if (chargeLogId) {
       await supabaseAdmin().from("charge_log").update({ estornado: true }).eq("id", chargeLogId);
       await supabaseAdmin().rpc("refund_credit", { _device_id: deviceId });
       await supabaseAdmin().rpc("ajusta_custo", { _device_id: deviceId, _delta: -custoAplicado });
     }
+
+    if (isProviderOverload) {
+      return {
+        ok: false,
+        message: "AI_PROVIDER_ERROR",
+        error: "O modelo de IA que usamos está sobrecarregado agora. Seu crédito não foi cobrado - tenta de novo em 1 minuto."
+      };
+    }
+
     throw e;
   }
 }
