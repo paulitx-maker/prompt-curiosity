@@ -1,4 +1,4 @@
-node_modules/
+Snode_modules/
 bun.lock
 package-lock.json
 .env
@@ -18,3 +18,4 @@ AGENTS.md
 .DS_Store
 src/routeTree.gen.ts
 src/routes/test.tsx
+supabase/.temp/
