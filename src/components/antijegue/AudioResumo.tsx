@@ -7,7 +7,6 @@ import { Segmented } from "./Segmented";
 import { Steps } from "./Steps";
 import { ResultCard } from "./ResultCard";
 import { checkAudioQuality, fileToBase64 } from "@/lib/quality";
-import { getDeviceId } from "@/lib/device";
 import { audioResumo } from "@/lib/antijegue.functions";
 import { toast } from "sonner";
 
@@ -15,7 +14,7 @@ type NumeroPessoas = "1" | "2" | "3_ou_mais";
 type Ruido = "limpo" | "moderado" | "muito_ruido";
 type Resultado = "transcricao_literal" | "resumo_curto" | "resumo_detalhado";
 
-export function AudioResumo() {
+export function AudioResumo({ deviceId }: { deviceId: string }) {
   const run = useServerFn(audioResumo);
   const [stage, setStage] = useState<1 | 2 | 3>(1);
   const [file, setFile] = useState<File | null>(null);
@@ -53,7 +52,7 @@ export function AudioResumo() {
     setLoading(true); setErro(null); setStage(3);
     try {
       const audioBase64 = await fileToBase64(file);
-      const res: any = await run({ data: { audioBase64, mimeType: file.type, fileName: file.name, deviceId: getDeviceId(), durationSeconds: duration, answers: { numeroPessoas, ruido, resultado } } });
+      const res: any = await run({ data: { audioBase64, mimeType: file.type, fileName: file.name, deviceId, durationSeconds: duration, answers: { numeroPessoas, ruido, resultado } } });
       if (!res.ok) {
         if (res.message?.includes("SEM_CREDITO") || res.message?.includes("LIMITE")) { window.dispatchEvent(new Event("abrir-paywall")); setStage(2); return; }
         throw new Error(res.message);
