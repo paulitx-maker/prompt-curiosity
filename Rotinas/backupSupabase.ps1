@@ -3,8 +3,7 @@ $BACKUP_DIR = "$REPO\Backups\Supabase"
 $DATA = Get-Date -Format "yyyy-MM-dd_HH-mm"
 mkdir $BACKUP_DIR -Force | Out-Null
 
-$DB_URL = "postgresql://postgres.mcukxnxpiayitkjmvjnv:gyvziq-8sipSo-fuqgen@aws-0-us-west-2.pooler.supabase.com:5432/postgres"
-$DUMP_FILE = "$BACKUP_DIR\supabase-full-$DATA.sql"
+$DB_URL = "postgresql://postgres.mcukxnxpiayitkjhmvjnv:$env:SUPABASE_DB_PASSWORD@aws-0-us-west-2.pooler.supabase.com:5432/postgres"
 
 Write-Host "Fazendo dump via Session Pooler 5432..." -ForegroundColor Cyan
 
