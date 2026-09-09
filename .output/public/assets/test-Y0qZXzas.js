@@ -1,1 +1,0 @@
-import{i as e}from"./index-DJWI0_wT.js";var t=e(),n=()=>(0,t.jsx)(`div`,{style:{padding:40},children:`FUNCIONOU - TEST OK`});export{n as component};
