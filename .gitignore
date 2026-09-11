@@ -19,3 +19,5 @@ AGENTS.md
 src/routeTree.gen.ts
 src/routes/test.tsx
 supabase/.temp/
+_kit-ux-meta/
+tree.txt
