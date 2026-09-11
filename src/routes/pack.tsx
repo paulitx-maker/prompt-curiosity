@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react';
+import { CreditsBadge } from '@/components/CreditsBadge';
 
 const PROMPTS = [
   { cat: "Design", title: "Prompt para Criar Logo no Midjourney", desc: "Crie um prompt perfeito para Midjourney gerar logo minimalista para [MARCA] no estilo [ESTILO] --ar 1:1...", price: "R$ 14.90" },
@@ -19,7 +20,13 @@ function PackPage() {
       <div className="max-w-[1120px] mx-auto px-5 sm:px-8 py-12">
         <div className="text-center max-w-[640px] mx-auto">
           <h1 className="text-[32px] font-extrabold tracking-tight">Brazilian Prompt Pack</h1>
-          <p className="mt-2 text-[14px] text-black/60">Créditos: 2 - A partir de R$4,90 • Curadoria feita via Supabase Edge Functions</p>
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <CreditsBadge deviceId="74d43458-78ad-4361-8066-dbb182208330" credits={3} usedToday={0} limitToday={10} />
+            <span className="text-[13px] text-black/50">• A partir de R$4,90 • Curadoria via Supabase</span>
+          </div>
+          <div className="mt-4">
+            <a href="/" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-black/10 text-[12px] font-bold hover:bg-black/[0.02]">← Voltar pra gerar post</a>
+          </div>
           <div className="mt-6 flex flex-wrap gap-2 justify-center">
             {cats.map(c => (
               <button key={c} onClick={()=> setFilter(c)} className={`px-3 py-1.5 rounded-full text-[12px] font-bold border transition ${filter===c ? "bg-[#1A1A1A] text-white border-black" : "bg-white border-black/10 text-black/60 hover:border-[#FF6B00]/30"}`}>{c}</button>

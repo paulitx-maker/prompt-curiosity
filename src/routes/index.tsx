@@ -31,7 +31,7 @@ function IndexPage() {
             <span className="font-extrabold text-[18px] tracking-tight lowercase"><span className="text-[#FF6B00]">anti</span><span className="text-[#1A1A1A]">-jegue</span></span>
             <span className="ml-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-white border border-[#FF6B00]/40 text-[#FF6B00]">BETA</span>
           </div>
-          <CreditsBadge credits={3} usedToday={0} limitToday={10} />
+          <CreditsBadge deviceId="74d43458-78ad-4361-8066-dbb182208330" credits={3} usedToday={0} limitToday={10} />
         </div>
       </header>
 
