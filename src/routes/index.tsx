@@ -1,3 +1,4 @@
+import React from 'react';
 import { createFileRoute } from '@tanstack/react-router'
 import { CreditsBadge } from '@/components/CreditsBadge';
 import { FotoPost } from '@/components/antijegue/FotoPost';
@@ -13,6 +14,20 @@ const BIBLIOTECA_REAL = [
 ];
 
 function IndexPage() {
+  const [deviceId, setDeviceId] = React.useState<string>("web");
+  React.useEffect(() => {
+    try {
+      let id = localStorage.getItem("device_id");
+      if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem("device_id", id);
+      }
+      setDeviceId(id);
+    } catch {
+      setDeviceId("web");
+    }
+  }, []);
+
   const scrollToUpload = () => {
     document.getElementById('upload-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -31,7 +46,7 @@ function IndexPage() {
             <span className="font-extrabold text-[18px] tracking-tight lowercase"><span className="text-[#FF6B00]">anti</span><span className="text-[#1A1A1A]">-jegue</span></span>
             <span className="ml-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-white border border-[#FF6B00]/40 text-[#FF6B00]">BETA</span>
           </div>
-          <CreditsBadge deviceId="74d43458-78ad-4361-8066-dbb182208330" credits={3} usedToday={0} limitToday={10} />
+          <CreditsBadge deviceId={deviceId} credits={3} usedToday={0} limitToday={10} />
         </div>
       </header>
 
@@ -56,7 +71,7 @@ function IndexPage() {
         </div>
 
         <div id="upload-section" className="max-w-[720px] mx-auto pb-14 scroll-mt-[80px]">
-          <FotoPost deviceId="74d43458-78ad-4361-8066-dbb182208330" />
+          <FotoPost deviceId={deviceId} />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-14">

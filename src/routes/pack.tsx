@@ -1,3 +1,4 @@
+import React from 'react';
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react';
 import { CreditsBadge } from '@/components/CreditsBadge';
@@ -13,6 +14,19 @@ const PROMPTS = [
 
 function PackPage() {
   const [filter, setFilter] = useState("Todas");
+  const [deviceId, setDeviceId] = React.useState<string>("web");
+  React.useEffect(() => {
+    try {
+      let id = localStorage.getItem("device_id");
+      if (!id) {
+        id = crypto.randomUUID();
+        localStorage.setItem("device_id", id);
+      }
+      setDeviceId(id);
+    } catch {
+      setDeviceId("web");
+    }
+  }, []);
   const cats = ["Todas", "Design", "Vendas", "RH", "Jurídico", "Marketing", "Finanças", "Atendimento", "Produtividade"];
   
   return (
@@ -21,7 +35,7 @@ function PackPage() {
         <div className="text-center max-w-[640px] mx-auto">
           <h1 className="text-[32px] font-extrabold tracking-tight">Brazilian Prompt Pack</h1>
           <div className="mt-3 flex items-center justify-center gap-3">
-            <CreditsBadge deviceId="74d43458-78ad-4361-8066-dbb182208330" credits={3} usedToday={0} limitToday={10} />
+            <CreditsBadge deviceId={deviceId} credits={3} usedToday={0} limitToday={10} />
             <span className="text-[13px] text-black/50">• A partir de R$4,90 • Curadoria via Supabase</span>
           </div>
           <div className="mt-4">

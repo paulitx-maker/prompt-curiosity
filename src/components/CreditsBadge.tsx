@@ -9,9 +9,9 @@ type Props = {
 
 function getStoredDeviceId(): string {
   try {
-    return localStorage.getItem("device_id") || "74d43458-78ad-4361-8066-dbb182208330";
+    return localStorage.getItem("device_id") || "web";
   } catch {
-    return "74d43458-78ad-4361-8066-dbb182208330";
+    return "web";
   }
 }
 
