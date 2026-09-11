@@ -154,7 +154,14 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
       };
       setVersions(prev => [...prev, newVersion]);
       setExecutionId(res.executionId ?? null);
-      window.dispatchEvent(new Event("credits-updated"));
+      try {
+        const current = parseInt(localStorage.getItem("credits") || "3");
+        const next = Math.max(0, current - 1);
+        localStorage.setItem("credits", String(next));
+        window.dispatchEvent(new CustomEvent("credits-updated", { detail: { credits: next, delta: -1 } }));
+      } catch {
+        window.dispatchEvent(new CustomEvent("credits-updated", { detail: { delta: -1 } }));
+      }
       window.dispatchEvent(new CustomEvent("post-gerado", { detail: content }));
     } catch (e:any) {
       if(e.message?.includes("SEM_CREDITO")) { window.dispatchEvent(new Event("abrir-paywall")); if(versions.length===0) setStage(2); }
