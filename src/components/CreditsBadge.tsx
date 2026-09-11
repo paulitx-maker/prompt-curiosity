@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 type Props = {
   credits?: number;
   usedToday?: number;
@@ -5,7 +7,23 @@ type Props = {
   deviceId?: string;
 };
 
-export function CreditsBadge({ credits = 3, usedToday = 0, limitToday = 10 }: Props) {
+export function CreditsBadge({ credits: initialCredits = 3, usedToday = 0, limitToday = 10 }: Props) {
+  const [credits, setCredits] = useState(initialCredits);
+
+  useEffect(() => {
+    const handleCreditsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ credits?: number; delta?: number }>).detail;
+      if (typeof detail?.credits === "number") {
+        setCredits(detail.credits);
+      } else if (typeof detail?.delta === "number") {
+        setCredits(current => current + detail.delta!);
+      }
+    };
+
+    window.addEventListener("credits-updated", handleCreditsUpdated);
+    return () => window.removeEventListener("credits-updated", handleCreditsUpdated);
+  }, []);
+
   return (
     <div className="inline-flex items-center rounded-full bg-[#FF6B00]/90 backdrop-blur border border-[#FF6B00]/20 px-[16px] py-[8px] shadow-[0_2px_12px_rgba(255,107,0,0.25)]">
       <span className="text-[14px] mr-1.5">⚡</span>

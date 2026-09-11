@@ -154,7 +154,13 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
       };
       setVersions(prev => [...prev, newVersion]);
       setExecutionId(res.executionId ?? null);
-      window.dispatchEvent(new CustomEvent("credits-updated", { detail: { delta: -1 } }));
+      const creditsReal = res.creditosRestantes ?? res.credits;
+      if (typeof creditsReal === "number") {
+        window.dispatchEvent(new CustomEvent("credits-updated", { detail: { credits: creditsReal } }));
+      } else {
+        console.warn("backend não retornou saldo pós-cobrança");
+        window.dispatchEvent(new CustomEvent("credits-updated", { detail: { delta: -1 } }));
+      }
       window.dispatchEvent(new CustomEvent("post-gerado", { detail: content }));
     } catch (e:any) {
       if(e.message?.includes("SEM_CREDITO")) { window.dispatchEvent(new Event("abrir-paywall")); if(versions.length===0) setStage(2); }

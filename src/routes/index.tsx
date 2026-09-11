@@ -15,6 +15,7 @@ const BIBLIOTECA_REAL = [
 
 function IndexPage() {
   const [deviceId, setDeviceId] = React.useState<string>("web");
+  const [creditsReal, setCreditsReal] = React.useState(3);
   React.useEffect(() => {
     try {
       let id = localStorage.getItem("device_id");
@@ -26,6 +27,20 @@ function IndexPage() {
     } catch {
       setDeviceId("web");
     }
+  }, []);
+
+  React.useEffect(() => {
+    const handleCreditsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ credits?: number; delta?: number }>).detail;
+      if (typeof detail?.credits === "number") {
+        setCreditsReal(detail.credits);
+      } else if (typeof detail?.delta === "number") {
+        setCreditsReal(current => current + detail.delta!);
+      }
+    };
+
+    window.addEventListener("credits-updated", handleCreditsUpdated);
+    return () => window.removeEventListener("credits-updated", handleCreditsUpdated);
   }, []);
 
   const scrollToUpload = () => {
@@ -46,7 +61,7 @@ function IndexPage() {
             <span className="font-extrabold text-[18px] tracking-tight lowercase"><span className="text-[#FF6B00]">anti</span><span className="text-[#1A1A1A]">-jegue</span></span>
             <span className="ml-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-white border border-[#FF6B00]/40 text-[#FF6B00]">BETA</span>
           </div>
-          <CreditsBadge deviceId={deviceId} credits={3} usedToday={0} limitToday={10} />
+          <CreditsBadge deviceId={deviceId} credits={creditsReal} usedToday={0} limitToday={10} />
         </div>
       </header>
 
