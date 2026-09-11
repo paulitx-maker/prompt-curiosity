@@ -7,19 +7,27 @@ type Props = {
   deviceId?: string;
 };
 
+function getInitialCredits(fallback: number): number {
+  try {
+    const saved = localStorage.getItem("credits");
+    if (saved) {
+      const n = parseInt(saved);
+      if (!isNaN(n)) return n;
+    }
+  } catch {}
+  return fallback;
+}
+
 export function CreditsBadge({ credits: initialCredits = 3, usedToday = 0, limitToday = 10, deviceId }: Props) {
-  const [credits, setCredits] = useState(initialCredits);
+  const [credits, setCredits] = useState(() => {
+    // Leitura síncrona pra não piscar 3 -> 2
+    if (typeof window !== "undefined") {
+      return getInitialCredits(initialCredits);
+    }
+    return initialCredits;
+  });
 
   useEffect(() => {
-    // tenta restaurar do localStorage (onde FotoPost salva)
-    try {
-      const saved = localStorage.getItem("credits");
-      if (saved) {
-        const n = parseInt(saved);
-        if (!isNaN(n)) setCredits(n);
-      }
-    } catch {}
-
     const handler = (e: Event) => {
       const ce = e as CustomEvent;
       if (ce.detail) {
@@ -32,26 +40,41 @@ export function CreditsBadge({ credits: initialCredits = 3, usedToday = 0, limit
             try { localStorage.setItem("credits", String(next)); } catch {}
             return next;
           });
-        } else {
-          // sem detail, apenas decrementa 1 (fallback)
-          setCredits((prev) => {
-            const next = Math.max(0, prev - 1);
-            try { localStorage.setItem("credits", String(next)); } catch {}
-            return next;
-          });
         }
       } else {
-        setCredits((prev) => Math.max(0, prev - 1));
+        setCredits((prev) => {
+          const next = Math.max(0, prev - 1);
+          try { localStorage.setItem("credits", String(next)); } catch {}
+          return next;
+        });
       }
     };
 
     window.addEventListener("credits-updated" as any, handler);
-    return () => window.removeEventListener("credits-updated" as any, handler);
+    // Também escuta storage de outra aba
+    const onStorage = () => {
+      try {
+        const saved = localStorage.getItem("credits");
+        if (saved) setCredits(parseInt(saved));
+      } catch {}
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("credits-updated" as any, handler);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
 
-  // se prop mudar (ex: veio do servidor), sincroniza se for menor
+  // Se o prop inicial for menor que o atual (ex: veio 0 do servidor), usa o menor
   useEffect(() => {
-    setCredits((prev) => Math.min(prev, initialCredits));
+    setCredits((prev) => {
+      if (initialCredits < prev) {
+        try { localStorage.setItem("credits", String(initialCredits)); } catch {}
+        return initialCredits;
+      }
+      return prev;
+    });
   }, [initialCredits]);
 
   return (

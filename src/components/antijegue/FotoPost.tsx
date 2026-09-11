@@ -109,6 +109,15 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
   };
 
   const submit = async (varietyBoost = 0) => {
+    // P0: Bloqueia no frontend se já está com 0 créditos - evita chamar backend à toa
+    try {
+      const c = parseInt(localStorage.getItem("credits") || "3");
+      if (c <= 0) {
+        window.dispatchEvent(new Event("abrir-paywall"));
+        setErro("Sem créditos. Desbloqueie por R$1,99 para continuar vendendo.");
+        return;
+      }
+    } catch {}
     if (!file ||!plataforma ||!tom ||!manterTexto) return;
     setLoading(true); setErro(null); 
     if (versions.length === 0) setStage(3);
@@ -141,7 +150,7 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
           if (versions.length === 0) setStage(2);
           return;
         }
-        if (res.message?.includes("SEM_CREDITO") || res.message?.includes("LIMITE")) { window.dispatchEvent(new Event("abrir-paywall")); if(versions.length===0) setStage(2); return; }
+        if (res.message?.includes("SEM_CREDITO") || res.message?.includes("LIMITE")) { try { localStorage.setItem("credits","0"); window.dispatchEvent(new CustomEvent("credits-updated", {detail:{credits:0}})); } catch {}; window.dispatchEvent(new Event("abrir-paywall")); if(versions.length===0) setStage(2); return; }
         throw new Error(res.error || res.message);
       }
       const content = res.post || res.post_gerado;
