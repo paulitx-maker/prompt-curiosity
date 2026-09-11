@@ -109,15 +109,6 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
   };
 
   const submit = async (varietyBoost = 0) => {
-    // P0: Bloqueia no frontend se já está com 0 créditos - evita chamar backend à toa
-    try {
-      const c = parseInt(localStorage.getItem("credits") || "3");
-      if (c <= 0) {
-        window.dispatchEvent(new Event("abrir-paywall"));
-        setErro("Sem créditos. Desbloqueie por R$1,99 para continuar vendendo.");
-        return;
-      }
-    } catch {}
     if (!file ||!plataforma ||!tom ||!manterTexto) return;
     setLoading(true); setErro(null); 
     if (versions.length === 0) setStage(3);
@@ -164,10 +155,16 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
       setVersions(prev => [...prev, newVersion]);
       setExecutionId(res.executionId ?? null);
       try {
-        const current = parseInt(localStorage.getItem("credits") || "3");
-        const next = Math.max(0, current - 1);
-        localStorage.setItem("credits", String(next));
-        window.dispatchEvent(new CustomEvent("credits-updated", { detail: { credits: next, delta: -1 } }));
+        const nextFromServer = (res as any)?.credits ?? (res as any)?.newCredits ?? (res as any)?.saldo_depois;
+        if (typeof nextFromServer === "number") {
+          localStorage.setItem("credits", String(nextFromServer));
+          window.dispatchEvent(new CustomEvent("credits-updated", { detail: { credits: nextFromServer } }));
+        } else {
+          const current = parseInt(localStorage.getItem("credits") || "3");
+          const next = Math.max(0, current - 1);
+          localStorage.setItem("credits", String(next));
+          window.dispatchEvent(new CustomEvent("credits-updated", { detail: { credits: next, delta: -1 } }));
+        }
       } catch {
         window.dispatchEvent(new CustomEvent("credits-updated", { detail: { delta: -1 } }));
       }
