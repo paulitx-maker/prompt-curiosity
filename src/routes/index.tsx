@@ -101,7 +101,7 @@ function IndexPage() {
                 <div className="min-w-0 flex-1 relative">
                   <div className="flex justify-between items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase">{item.tema_extraido || item.tipo || 'GERAL'}</span>
-                    <span className="text-[10px] text-black/40">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-[10px] text-black/40" suppressHydrationWarning>{item.created_at? new Date(item.created_at).toLocaleDateString('pt-BR') : ''}</span>
                   </div>
                   <div className="relative mt-2">
                     <p className="text-[14px] leading-[1.4] text-black/70 font-medium line-clamp-3">{(item.post_gerado || item.prompt_final || '').slice(0,140)}</p>
