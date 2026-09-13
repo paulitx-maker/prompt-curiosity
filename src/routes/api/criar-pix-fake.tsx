@@ -20,7 +20,6 @@ export const Route = createFileRoute('/api/criar-pix-fake')({
           if (!device_id) return Response.json({ error: 'device_id obrigatório', correlation_id }, { status: 400 })
 
           const env = process.env as any
-          // proteção: só libera se FAKE_PIX_ENABLED=true ou header X-FAKE-PIX-SECRET igual ao secret
           const enabled = env.FAKE_PIX_ENABLED === 'true' || env.FAKE_PIX_ENABLED === true
           const secretHeader = request.headers.get('x-fake-pix-secret')
           const secretEnv = env.FAKE_PIX_SECRET || 'dev_fake_secret_77fcd1f'
@@ -43,7 +42,6 @@ export const Route = createFileRoute('/api/criar-pix-fake')({
 
           const { valor_brl, qtd } = pack
 
-          // busca user
           const { data: user, error: userErr } = await supabase.from('users').select('*').eq('device_id', device_id).maybeSingle() as any
           if (userErr) console.warn('[FAKE-PIX] user select', userErr.message)
           const currentCredits = user?.credits ?? user?.creditos ?? 0
@@ -53,7 +51,8 @@ export const Route = createFileRoute('/api/criar-pix-fake')({
 
           const txid = `fake_pix_${device_id.slice(0,8)}_${Date.now()}_${correlation_id.slice(0,8)}`
 
-          // insere pagamento fake aprovado
+          // CORREÇÃO chk_fase: usa fase permitida 'CRIADO' (ou 'APROVADO' se existir) em vez de 'FAKE_APROVADO' que violava constraint
+          // fake=true fica no raw_mp_response para rastreabilidade
           const { error: insErr } = await supabase.from('pagamentos_pix').insert({
             correlation_id,
             device_id,
@@ -61,15 +60,14 @@ export const Route = createFileRoute('/api/criar-pix-fake')({
             valor_brl,
             pack_id: pack_id || '10',
             qtd_creditos: qtd,
-            status: 'aprovado',
-            fase: 'FAKE_APROVADO',
+            status: 'aprovado', // status real aprovado
+            fase: 'CRIADO', // fase permitida pelo chk_fase (mesmo que criar-pix.tsx usa)
             mercadopago_id: `fake_${correlation_id}`,
-            raw_mp_response: { fake: true, correlation_id, pack_id, qtd, valor_brl, created_at: new Date().toISOString() },
+            raw_mp_response: { fake: true, fase_original: 'FAKE_APROVADO', correlation_id, pack_id, qtd, valor_brl, created_at: new Date().toISOString() },
             updated_at: new Date().toISOString()
           } as any)
           if (insErr) throw insErr
 
-          // credita user 0->10 (ou 1->11 etc) - fonte verdade
           const novoSaldo = currentCredits + qtd
           const { error: updErr } = await supabase.from('users').update({
             credits: novoSaldo,
@@ -78,7 +76,7 @@ export const Route = createFileRoute('/api/criar-pix-fake')({
           } as any).eq('device_id', device_id)
           if (updErr) throw updErr
 
-          console.log(`[FAKE-PIX][${correlation_id}][${device_id}] fase=FAKE_APROVADO pack=${pack_id} ${currentCredits}->${novoSaldo}`)
+          console.log(`[FAKE-PIX][${correlation_id}][${device_id}] fase=FAKE_APROVADO(real=CRIADO) pack=${pack_id} ${currentCredits}->${novoSaldo}`)
 
           return Response.json({
             id: `fake_${correlation_id}`,
@@ -89,7 +87,8 @@ export const Route = createFileRoute('/api/criar-pix-fake')({
             credits: novoSaldo,
             creditos: novoSaldo,
             status: 'aprovado',
-            fase: 'FAKE_APROVADO',
+            fase: 'FAKE_APROVADO', // retorna fake para frontend, mas no banco gravou CRIADO permitido
+            fase_real_banco: 'CRIADO',
             fake: true,
             message: `${currentCredits}->${novoSaldo}`
           })
