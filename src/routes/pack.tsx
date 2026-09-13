@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router'
 import { CreditsBadge } from '@/components/CreditsBadge';
+import { BannerManus } from '@/components/BannerManus';
 
 function PackPage() {
   const [filter, setFilter] = useState("Todas");
@@ -8,11 +9,15 @@ function PackPage() {
   const [prompts, setPrompts] = useState<any[]>([]);
   const [busca, setBusca] = useState("");
   const [loading, setLoading] = useState(true);
+  const [usedToday, setUsedToday] = useState(0);
 
   useEffect(() => {
     const id = localStorage.getItem("device_id") || crypto.randomUUID();
     localStorage.setItem("device_id", id);
     setDeviceId(id);
+    // busca usadoHoje real via ensure-user
+    fetch("/api/ensure-user",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({device_id:id})})
+      .then(r=>r.json()).then(d=>{ if(typeof d.usadoHoje==='number') setUsedToday(d.usadoHoje); }).catch(()=>{});
   }, []);
 
   useEffect(() => {
@@ -21,34 +26,22 @@ function PackPage() {
         setLoading(true);
         const url = (import.meta as any).env?.VITE_SUPABASE_URL;
         const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
-        if (!url || !anon) {
-          setLoading(false);
-          return;
-        }
+        if (!url || !anon) { setLoading(false); return; }
         const res = await fetch(`${url}/rest/v1/vw_pack_venda?ativo=eq.true&select=*&limit=100&order=categoria.asc`, {
           headers: { apikey: anon, Authorization: `Bearer ${anon}` }
         });
-        if (res.ok) {
-          const data = await res.json();
-          setPrompts(data || []);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
+        if (res.ok) setPrompts(await res.json());
+      } catch(e){ console.error(e); } finally { setLoading(false); }
     })();
   }, []);
 
   const [cats, setCats] = useState<string[]>(["Todas"]);
-
   useEffect(() => {
     (async () => {
       try {
         const url = (import.meta as any).env?.VITE_SUPABASE_URL;
         const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
         if (!url || !anon) return;
-        // Busca categorias distintas direto do Supabase - seguro, só leitura publica de vw_pack_venda
         const res = await fetch(`${url}/rest/v1/vw_pack_venda?ativo=eq.true&select=categoria`, {
           headers: { apikey: anon, Authorization: `Bearer ${anon}` }
         });
@@ -65,10 +58,7 @@ function PackPage() {
     try {
       const url = (import.meta as any).env?.VITE_SUPABASE_URL;
       const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
-      if (!url || !anon) {
-        alert("Supabase URL não configurada");
-        return;
-      }
+      if (!url || !anon) { alert("Supabase não configurado"); return; }
       const res = await fetch(`${url}/rest/v1/rpc/copiar_prompt_pack`, {
         method: 'POST',
         headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
@@ -76,21 +66,26 @@ function PackPage() {
       });
       if (!res.ok) {
         const txt = await res.text();
-        if (txt.includes('SEM_CREDITO')) {
-          window.dispatchEvent(new CustomEvent('open-paywall'));
+        if (txt.includes('SEM_CREDITO') || res.status===402) {
+          window.dispatchEvent(new CustomEvent('abrir-paywall'));
           return;
         }
         throw new Error(txt);
       }
       const data = await res.json();
-      await navigator.clipboard.writeText(data);
-      window.dispatchEvent(new CustomEvent('credits-updated', { detail: { delta: -1 } }));
+      // data pode ser string prompt ou objeto {prompt, credits}
+      const texto = typeof data === 'string' ? data : data.prompt || data.texto || '';
+      const novoSaldo = typeof data === 'object' && typeof data.credits === 'number' ? data.credits : null;
+      await navigator.clipboard.writeText(texto);
+      if (novoSaldo !== null) {
+        window.dispatchEvent(new CustomEvent('credits-updated', { detail: { credits: novoSaldo } }));
+      } else {
+        window.dispatchEvent(new CustomEvent('credits-updated', { detail: { delta: -1 } }));
+      }
     } catch (e: any) {
       if (e?.message?.includes('SEM_CREDITO')) {
-        window.dispatchEvent(new CustomEvent('open-paywall'));
-      } else {
-        console.error(e);
-      }
+        window.dispatchEvent(new CustomEvent('abrir-paywall'));
+      } else console.error(e);
     }
   };
 
@@ -106,12 +101,13 @@ function PackPage() {
         <div className="text-center max-w-[640px] mx-auto">
           <h1 className="text-[32px] font-extrabold tracking-tight">Brazilian Prompt Pack</h1>
           <div className="mt-3 flex items-center justify-center gap-3">
-            <CreditsBadge deviceId={deviceId} credits={3} usedToday={0} limitToday={10} />
-            <span className="text-[13px] text-black/50">• {prompts.length} prompts • 40% preview, 100% ao copiar</span>
+            <CreditsBadge deviceId={deviceId} usedToday={usedToday} limitToday={10} />
+            <span className="text-[13px] text-black/50">• A partir de R$4,90 • Curadoria via Supabase • {prompts.length} prompts reais</span>
           </div>
           <div className="mt-4">
             <a href="/" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-black/10 text-[12px] font-bold hover:bg-black/[0.02]">← Voltar pra gerar post</a>
           </div>
+          <div className="mt-4"><BannerManus posicao="pack_top" modo="manus_estatico" /></div>
           <div className="mt-6 flex flex-wrap gap-2 justify-center">
             {cats.map(c => (
               <button key={c} onClick={()=> setFilter(c)} className={`px-3 py-1.5 rounded-full text-[12px] font-bold border transition ${filter===c? "bg-[#1A1A1A] text-white border-black" : "bg-white border-black/10 text-black/60 hover:border-[#FF6B00]/30"}`}>{c}</button>
@@ -142,11 +138,8 @@ function PackPage() {
             ))}
           </div>
         )}
-
         {!loading && filtrados.length === 0 && (
-          <div className="mt-10 text-center py-10 text-[14px] text-black/50">
-            Nenhum prompt encontrado para "{busca}" em {filter}
-          </div>
+          <div className="mt-10 text-center py-10 text-[14px] text-black/50">Nenhum prompt encontrado para "{busca}" em {filter}</div>
         )}
       </div>
     </div>
@@ -156,3 +149,4 @@ function PackPage() {
 export const Route = createFileRoute('/pack')({
   component: PackPage,
 })
+

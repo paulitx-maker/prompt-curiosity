@@ -16,16 +16,37 @@ export function FeedbackBar({ executionId, onFeedback }: Props) {
   const activeRating = hovered ?? rating;
 
   const getMessage = () => {
-    if (!activeRating) return "Sua opinião nos ajuda a melhorar - leva 5 segundos";
-    if (activeRating <= 2) return "Poxa, queremos melhorar. O que não funcionou pra você?";
-    if (activeRating === 3) return "Obrigado! O que faltou pra virar 5 estrelas?";
-    if (activeRating === 4) return "Que bom que gostou! O que mais você queria ver aqui?";
-    return "Incrível! Obrigado por compartilhar - isso nos ajuda a criar posts ainda melhores pra você.";
+    if (!activeRating) return "Sua opinião faz a gente gastar menos IA e te entregar mais rápido";
+    if (activeRating <= 2) return "Poxa, vamos melhorar. O que faltou? Seu feedback nos ajuda a corrigir o prompt.";
+    if (activeRating === 3) return "Valeu! O que faltou pra virar 5 estrelas? Conta pra gente.";
+    if (activeRating === 4) return "Boa! Com 4+ estrelas e seu consentimento, podemos usar só o TEXTO gerado (não a foto) como exemplo anônimo.";
+    return "Incrível! Com 4-5★ e seu consentimento, seu POST (não a foto) pode virar exemplo anônimo na biblioteca viva nota 4/5.";
   };
 
   const handleSubmit = async () => {
     if (!rating) return;
     setSending(true);
+    try {
+      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
+      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
+      if (url && anon && executionId) {
+        // PRIVACIDADE TOS: só autoriza POST gerado, nunca imagem original. Imagem (imageBase64) não é salva em executions.
+        // Só marca pode_usar_publico=true se nota>=4 E allowGallery=true
+        const pode_usar = allowGallery && rating >= 4;
+        await fetch(`${url}/rest/v1/executions?id=eq.${executionId}`, {
+          method: 'PATCH',
+          headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+          body: JSON.stringify({ 
+            nota: rating, 
+            rating: rating,
+            allow_gallery: allowGallery,
+            pode_usar_publico: pode_usar,
+            feedback_at: new Date().toISOString(),
+            // nunca salvar imagem: garante que imageBase64 não vai pra coluna imagem
+          })
+        });
+      }
+    } catch {}
     onFeedback?.(rating, allowGallery);
     setTimeout(() => {
       setSending(false);
@@ -39,7 +60,7 @@ export function FeedbackBar({ executionId, onFeedback }: Props) {
         <div className="w-8 h-8 rounded-full bg-[#22C55E] text-white flex items-center justify-center"><Check className="w-5 h-5" /></div>
         <div>
           <p className="text-[13px] font-extrabold text-[#166534]">Valeu pelo feedback!</p>
-          <p className="text-[11px] text-[#15803D]">Anotado - vamos usar isso pra melhorar sua próxima propaganda.</p>
+          <p className="text-[11px] text-[#15803D]">Consentimento registrado: {allowGallery && rating && rating>=4 ? "POST pode virar exemplo anônimo (foto nunca)" : "POST não será usado como exemplo"}. Isso alimenta biblioteca viva nota 4/5.</p>
         </div>
       </div>
     );
@@ -95,7 +116,10 @@ export function FeedbackBar({ executionId, onFeedback }: Props) {
           className="mt-0.5 w-4 h-4 rounded border-black/20 text-[#FF6B00] focus:ring-[#FF6B00]/20"
         />
         <span className="text-[12px] leading-[1.4] text-black/70 group-hover:text-black">
-          Pode usar meu post como exemplo anônimo na galeria? <span className="text-black/40">(sem seu nome/foto, só texto gerado)</span>
+          Autorizo usar <strong>apenas o POST gerado</strong> (texto/legenda) como exemplo anônimo na biblioteca? <span className="text-black/40">(nunca sua foto original - imageBase64 não é salva, se precisar exibir imagem no exemplo aplicamos blur 30% filter:blur(12px) opacity 0.7 pra impedir identificação - TOS/Privacidade)</span>
+          {allowGallery && rating && rating>=4 && (
+            <span className="block mt-1 text-[11px] font-bold text-[#166534]">→ Com 4-5★ + consentimento, seu TEXTO entra na biblioteca viva nota 4/5. Foto original nunca é salva nem exibida.</span>
+          )}
         </span>
       </label>
 
@@ -104,7 +128,7 @@ export function FeedbackBar({ executionId, onFeedback }: Props) {
         disabled={!rating || sending}
         className={`w-full rounded-full px-6 py-3.5 font-bold text-[14px] flex items-center justify-center gap-2 transition-all
           ${rating 
-            ? "bg-[#1A1A1A] text-white shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:bg-black active:scale-[0.98] animate-[pulseStrong_2s_ease-in-out_infinite]" 
+            ? "bg-[#1A1A1A] text-white shadow-[0_8px_20px_rgba(0,0,0,0.15)] hover:bg-black active:scale-[0.98]" 
             : "bg-black/10 text-black/30 cursor-not-allowed"}`}
       >
         {sending ? (
@@ -115,17 +139,11 @@ export function FeedbackBar({ executionId, onFeedback }: Props) {
         ) : (
           <>
             <Send className="w-4 h-4" />
-            {rating ? `Enviar nota ${rating}` : "Escolha uma nota"}
+            {rating ? `Enviar nota ${rating} ${allowGallery && rating>=4 ? '(autoriza POST)' : '(não autoriza)'}` : "Escolha uma nota"}
           </>
         )}
       </button>
-
-      <style>{`
-        @keyframes pulseStrong {
-          0%, 100% { box-shadow: 0 8px 20px rgba(0,0,0,0.15); }
-          50% { box-shadow: 0 12px 28px rgba(0,0,0,0.25); transform: scale(1.01); }
-        }
-      `}</style>
     </div>
   );
 }
+

@@ -25,9 +25,23 @@ export const Route = createFileRoute('/api/criar-pix')({
           const mpToken = env.MP_ACCESS_TOKEN
           if (!mpToken?.startsWith('APP_USR-')) return Response.json({ error: 'Token MP não é produção', correlation_id }, { status: 500 })
 
-          const pack = (TABELA_PRECOS[pack_id] || TABELA_PRECOS['10']) as any
+          // valida pacote contra pacotes_credito ativo=true (segurança)
+          let pack = (TABELA_PRECOS[pack_id] || TABELA_PRECOS['10']) as any
+          try {
+            const { data: pkg } = await supabase.from('pacotes_credito').select('*').eq('id', pack_id).eq('ativo', true).maybeSingle()
+              || await supabase.from('pacotes_credito').select('*').eq('pack_id', pack_id).eq('ativo', true).maybeSingle() as any
+            if(pkg){
+              pack = { valor_brl: (pkg as any).preco_centavos ? (pkg as any).preco_centavos/100 : (pkg as any).valor_brl, qtd: (pkg as any).qtd_creditos }
+            }
+          } catch {}
+
           const { valor_brl, qtd } = pack
 
+          // LIMITE MAX 400 créditos total - checa users.credits + qtd
+          const { data: user } = await supabase.from('users').select('credits').eq('device_id', device_id).maybeSingle() as any
+          if(user && (user.credits + qtd) > 400){
+            return Response.json({ error: 'MAX_400', credits: user.credits, max: 400, correlation_id }, { status: 400 })
+          }
 
           console.log(`[CRIAR-PIX][${correlation_id}][${device_id}] fase=CRIADO pack=${pack_id} valor=${valor_brl} qtd=${qtd}`)
 
@@ -42,7 +56,6 @@ export const Route = createFileRoute('/api/criar-pix')({
           const client = new MercadoPagoConfig({ accessToken: mpToken, options: { idempotencyKey: correlation_id } })
           const payment = new Payment(client)
           
-          // FIX: baseUrl limpa + bypass
           const baseUrl = (env.WEBHOOK_BASE_URL || `https://${env.VERCEL_URL}` || 'https://prompt-curiosity.vercel.app').replace(/\/$/, '')
           const bypass = env.VERCEL_AUTOMATION_BYPASS_SECRET || ''
           const notification_url = bypass 
@@ -82,3 +95,4 @@ export const Route = createFileRoute('/api/criar-pix')({
     },
   },
 })
+
