@@ -15,7 +15,7 @@ function PackPage() {
     const id = localStorage.getItem("device_id") || crypto.randomUUID();
     localStorage.setItem("device_id", id);
     setDeviceId(id);
-    // busca usadoHoje real via ensure-user
+    // busca usadoHoje real via ensure-user - fonte verdade
     fetch("/api/ensure-user",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({device_id:id})})
       .then(r=>r.json()).then(d=>{ if(typeof d.usadoHoje==='number') setUsedToday(d.usadoHoje); }).catch(()=>{});
   }, []);
@@ -27,6 +27,7 @@ function PackPage() {
         const url = (import.meta as any).env?.VITE_SUPABASE_URL;
         const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
         if (!url || !anon) { setLoading(false); return; }
+        // select * já traz prompt_preview_40 + prompt_completo_100 se view tiver
         const res = await fetch(`${url}/rest/v1/vw_pack_venda?ativo=eq.true&select=*&limit=100&order=categoria.asc`, {
           headers: { apikey: anon, Authorization: `Bearer ${anon}` }
         });
@@ -59,6 +60,8 @@ function PackPage() {
       const url = (import.meta as any).env?.VITE_SUPABASE_URL;
       const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
       if (!url || !anon) { alert("Supabase não configurado"); return; }
+
+      // 1. Debita crédito via RPC - mantém realtime que já funciona 7->6 etc
       const res = await fetch(`${url}/rest/v1/rpc/copiar_prompt_pack`, {
         method: 'POST',
         headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
@@ -73,14 +76,47 @@ function PackPage() {
         throw new Error(txt);
       }
       const data = await res.json();
-      // data pode ser string prompt ou objeto {prompt, credits}
-      const texto = typeof data === 'string' ? data : data.prompt || data.texto || '';
+
+      // 2. CORREÇÃO sem regressão: prioriza completo que já está no p (vem de select *), depois retorno RPC, depois busca direta
+      let texto = p.prompt_completo_100 || p.prompt_completo || p.conteudo_completo || '';
+      
+      if (!texto || texto.length < 60) {
+        // fallback: o que RPC retornou (pode ser string ou objeto com prompt)
+        const fromRpc = typeof data === 'string' ? data : (data.prompt_completo_100 || data.prompt_completo || data.prompt || data.texto || '');
+        if (fromRpc && fromRpc.length > texto.length) texto = fromRpc;
+      }
+
+      if (!texto || texto.length < 60) {
+        // último fallback sem quebrar: busca direta pelo id garantindo coluna completa
+        try {
+          const r2 = await fetch(`${url}/rest/v1/vw_pack_venda?id=eq.${p.id}&select=prompt_completo_100,prompt_completo,prompt,conteudo_completo&limit=1`, {
+            headers: { apikey: anon, Authorization: `Bearer ${anon}` }
+          });
+          if (r2.ok) {
+            const d2 = await r2.json();
+            if (d2[0]) {
+              texto = d2[0].prompt_completo_100 || d2[0].prompt_completo || d2[0].prompt || d2[0].conteudo_completo || texto;
+            }
+          }
+        } catch {}
+      }
+
+      // se ainda não achou completo, usa preview (não deixa vazio) - mas loga para debug
+      if (!texto) {
+        console.warn('prompt_completo_100 não encontrado, usando preview_40', Object.keys(p));
+        texto = p.prompt_preview_40 || '';
+      }
+
       const novoSaldo = typeof data === 'object' && typeof data.credits === 'number' ? data.credits : null;
       await navigator.clipboard.writeText(texto);
+
+      // mantém realtime que você já validou: saldo certo ao abrir e -1 ao copiar
       if (novoSaldo !== null) {
-        window.dispatchEvent(new CustomEvent('credits-updated', { detail: { credits: novoSaldo } }));
+        window.dispatchEvent(new CustomEvent('credits-updated', { detail: { credits: novoSaldo, usadoHoje: usedToday + 1 } }));
+        setUsedToday(v => v + 1);
       } else {
         window.dispatchEvent(new CustomEvent('credits-updated', { detail: { delta: -1 } }));
+        setUsedToday(v => v + 1);
       }
     } catch (e: any) {
       if (e?.message?.includes('SEM_CREDITO')) {
