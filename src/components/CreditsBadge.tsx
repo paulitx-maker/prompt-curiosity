@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function CreditsBadge({ credits: initialCredits, usedToday: propUsedToday = 0, limitToday = 10, deviceId }: Props) {
-  const [credits, setCredits] = useState<number | null>(initialCredits ?? null);
+  const [credits, setCredits] = useState<number | null>(null);
   const [usedToday, setUsedToday] = useState(propUsedToday);
 
   useEffect(()=>{ setUsedToday(propUsedToday); },[propUsedToday]);
@@ -17,11 +17,10 @@ export function CreditsBadge({ credits: initialCredits, usedToday: propUsedToday
     const id = deviceId || (() => {
       try { return localStorage.getItem("device_id") || ""; } catch { return ""; }
     })();
-    if (!id) return;
+    if (!id || id === "web") return;
 
     const fetchCredits = async () => {
       try {
-        // Fonte verdade: ensure-user retorna credits + usadoHoje
         const res = await fetch("/api/ensure-user", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -33,7 +32,6 @@ export function CreditsBadge({ credits: initialCredits, usedToday: propUsedToday
           if (typeof data.usadoHoje === 'number') setUsedToday(data.usadoHoje);
           return;
         }
-        // fallback direto Supabase se ensure-user falhar (build-safe)
         const url = (import.meta as any).env?.VITE_SUPABASE_URL;
         const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
         if (url && anon) {
@@ -42,7 +40,7 @@ export function CreditsBadge({ credits: initialCredits, usedToday: propUsedToday
           });
           if (r.ok) {
             const d = await r.json();
-            if (d[0]?.credits !== undefined) setCredits(d[0].credits);
+            if (d[0]?.credits!== undefined) setCredits(d[0].credits);
           }
         }
       } catch {}
@@ -55,7 +53,7 @@ export function CreditsBadge({ credits: initialCredits, usedToday: propUsedToday
       if (ce.detail && typeof ce.detail.credits === "number") {
         setCredits(ce.detail.credits);
       } else if (ce.detail && typeof ce.detail.delta === "number") {
-        setCredits((prev) => Math.max(0, (prev ?? 3) + ce.detail.delta));
+        setCredits((prev) => Math.max(0, (prev?? 0) + ce.detail.delta));
       }
       if (ce.detail && typeof ce.detail.usadoHoje === 'number') {
         setUsedToday(ce.detail.usadoHoje);
@@ -63,20 +61,19 @@ export function CreditsBadge({ credits: initialCredits, usedToday: propUsedToday
     };
     window.addEventListener("credits-updated" as any, handler);
     return () => window.removeEventListener("credits-updated" as any, handler);
-  }, [deviceId, initialCredits]);
+  }, [deviceId]);
 
-  const display = credits ?? initialCredits ?? 3;
+  const display = credits?? initialCredits?? 0;
 
   return (
-    <div className="inline-flex items-center rounded-full bg-[#FF6B00]/90 backdrop-blur border border-[#FF6B00]/20 px-[16px] py-[8px] shadow-[0_2px_12px_rgba(255,107,0,0.25)]">
-      <span className="text-[14px] mr-1.5">⚡</span>
-      <span className="text-[13px] font-extrabold text-white">{display}</span>
-      <span className="text-[13px] font-semibold ml-1 text-white">créditos</span>
-      <span className="mx-2 text-[13px] font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>|</span>
-      <span className="text-[12px] font-bold" style={{ color: '#1A1A1A' }}>
+    <div className="inline-flex items-center rounded-full bg-[#FF6B00]/90 backdrop-blur border border-[#FF6B00]/20 px- py- shadow-[0_2px_12px_rgba(255,107,0,0.25)]">
+      <span className="text- mr-1.5">⚡</span>
+      <span className="text- font-extrabold text-white">{display}</span>
+      <span className="text- font-semibold ml-1 text-white">créditos</span>
+      <span className="mx-2 text- font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>|</span>
+      <span className="text- font-bold" style={{ color: '#1A1A1A' }}>
         {usedToday}/{limitToday} hoje
       </span>
     </div>
   );
 }
-
