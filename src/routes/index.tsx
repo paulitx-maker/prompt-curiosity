@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { CreditsBadge } from '@/components/CreditsBadge';
 import { FotoPost } from '@/components/antijegue/FotoPost';
 import { PackDrawer } from '@/components/PackDrawer';
-import { BannerManus } from '@/components/BannerManus';
+import { EspacoComercial } from '@/components/EspacoComercial';
 
 function IndexPage() {
   const [deviceId, setDeviceId] = React.useState<string>("web");
@@ -23,27 +23,32 @@ function IndexPage() {
   }, []);
 
   React.useEffect(() => {
-    (async () => {
-      try {
-        const url = (import.meta as any).env?.VITE_SUPABASE_URL;
-        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
-        if (!url || !anon) return;
-        // F1 VALIDADO: biblioteca viva sem mocks, nota 4 ou 5, pode_usar_publico=true
-        const res = await fetch(`${url}/rest/v1/executions?pode_usar_publico=eq.true&nota=gte.4&order=created_at.desc&limit=6&select=*`, {
+  (async () => {
+    try {
+      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
+      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
+      if (!url ||!anon) return;
+      // F1 V3: random backend via RPC que você criou - cada refresh 6 posts diferentes
+      const res = await fetch(`${url}/rest/v1/rpc/get_random_executions`, {
+        headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
+        method: 'POST'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBiblioteca(data || []);
+      } else {
+        // fallback se RPC falhar: busca 20 e randomiza no browser
+        const res2 = await fetch(`${url}/rest/v1/executions?pode_usar_publico=eq.true&select=*&limit=20`, {
           headers: { apikey: anon, Authorization: `Bearer ${anon}` }
         });
-        if (res.ok) {
-          const data = await res.json();
-          setBiblioteca(data || []);
-        } else {
-          // fallback sem nota se coluna nota não existir
-          const res2 = await fetch(`${url}/rest/v1/executions?pode_usar_publico=eq.true&order=created_at.desc&limit=6&select=*`, {
-            headers: { apikey: anon, Authorization: `Bearer ${anon}` }
-          });
-          if (res2.ok) setBiblioteca(await res2.json());
+        if (res2.ok) {
+          const all = await res2.json();
+          const random6 = all.sort(() => 0.5 - Math.random()).slice(0,6);
+          setBiblioteca(random6);
         }
-      } catch {}
-    })();
+      }
+    } catch {}
+  })();
   }, []);
 
   const scrollToUpload = () => {
@@ -82,10 +87,12 @@ function IndexPage() {
           <FotoPost deviceId={deviceId} />
         </div>
 
+        <div className="pb-8"><EspacoComercial posicao="home_meio" /></div>
+
         <div className="pb-8">
           <div className="flex justify-between items-baseline mb-5">
             <h2 className="font-extrabold text-[22px] sm:text-[26px] tracking-tight">Biblioteca pronta de propagandas</h2>
-            <span className="text-[13px] font-semibold text-black/50">fotos reais de lojinha • nota 4 ou 5 • Supabase real</span>
+            <span className="text-[13px] font-semibold text-black/50">posts públicos • Supabase real • random</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {biblioteca.length === 0 ? (
@@ -99,7 +106,7 @@ function IndexPage() {
                 <div className="min-w-0 flex-1 relative">
                   <div className="flex justify-between items-center gap-2">
                     <span className="px-2 py-0.5 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase">{item.categoria || 'GERAL'}</span>
-                    <span className="text-[10px] text-black/40">{item.nota ? `★${item.nota}` : new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
+                    <span className="text-[10px] text-black/40">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
                   </div>
                   <div className="relative mt-2">
                     <p className="text-[14px] leading-[1.4] text-black/70 font-medium line-clamp-3">{(item.legenda || item.conteudo || '').slice(0,140)}</p>
@@ -115,7 +122,7 @@ function IndexPage() {
         {/* BANNER VIVO RANDOM - 3 separados, cada em seu lugar */}
         <div className="pb-8">
           <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Destaque vivo • random executions + vw_pack_venda • fade</h3>
-          <BannerManus posicao="home_after_biblioteca" modo="vivo_random" />
+          <EspacoComercial posicao="home_after_biblioteca" modo="vivo_random" />
         </div>
 
         <div className="pb-8">
@@ -125,14 +132,23 @@ function IndexPage() {
         {/* BANNERS PARCEIROS - tabela Supabase */}
         <div className="pb-8">
           <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Parceiros • banners_parceiros tabela</h3>
-          <BannerManus posicao="home_after_packdrawer" modo="parceiros" />
+          <EspacoComercial posicao="home_after_packdrawer" modo="parceiros" />
         </div>
       </main>
 
       <footer className="relative z-10 border-t border-black/[0.06] bg-white/80 backdrop-blur">
-        <div className="max-w-[1120px] mx-auto px-5 sm:px-8 py-4 flex justify-between text-[13px]">
-          <span>Anti-Jegue • feito pra quem vende</span>
-          <span className="text-black/50">1 crédito = 1 propaganda</span>
+        <div className="max-w-[1120px] mx-auto px-5 sm:px-8 py-6 flex flex-col sm:flex-row justify-between gap-3 text-[13px]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#FF6B00] flex items-center justify-center text-white font-black text-[14px]">A</div>
+            <span className="font-extrabold tracking-tight lowercase"><span className="text-[#FF6B00]">anti</span>-jegue</span>
+            <span className="ml-1 text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-white border border-[#FF6B00]/40 text-[#FF6B00]">BETA</span>
+            <span className="ml-2">• feito pra quem vende</span>
+          </div>
+          <div className="flex items-center gap-4 text-black/50">
+            <span>1 crédito = 1 propaganda</span>
+            <span className="hidden sm:inline">•</span>
+            <span>Supabase real • random</span>
+          </div>
         </div>
       </footer>
     </div>
@@ -142,4 +158,3 @@ function IndexPage() {
 export const Route = createFileRoute('/')({
   component: IndexPage,
 })
-

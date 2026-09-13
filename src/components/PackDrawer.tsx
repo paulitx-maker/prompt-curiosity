@@ -13,7 +13,7 @@ export function PackDrawer({ onOpenPack }: PackDrawerProps) {
         const url = (import.meta as any).env?.VITE_SUPABASE_URL;
         const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
         if (!url || !anon) return;
-        const res = await fetch(`${url}/rest/v1/vw_pack_venda?ativo=eq.true&order=created_at.desc&limit=2&select=*`, {
+        const res = await fetch(`${url}/rest/v1/vw_pack_venda?ativo=eq.true&limit=2&select=*`, {
           headers: { apikey: anon, Authorization: `Bearer ${anon}` }
         });
         if (res.ok) setPromptsVivos(await res.json());
@@ -102,4 +102,3 @@ export function PackDrawer({ onOpenPack }: PackDrawerProps) {
     </div>
   );
 }
-

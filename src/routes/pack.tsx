@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createFileRoute } from '@tanstack/react-router'
 import { CreditsBadge } from '@/components/CreditsBadge';
-import { BannerManus } from '@/components/BannerManus';
+import { EspacoComercial } from '@/components/EspacoComercial';
 
 function PackPage() {
   const [filter, setFilter] = useState("Todas");
@@ -107,7 +107,7 @@ function PackPage() {
           <div className="mt-4">
             <a href="/" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-black/10 text-[12px] font-bold hover:bg-black/[0.02]">← Voltar pra gerar post</a>
           </div>
-          <div className="mt-4"><BannerManus posicao="pack_top" modo="manus_estatico" /></div>
+        <div className="mt-4"><EspacoComercial posicao="pack_top" modo="fixo" /></div>
           <div className="mt-6 flex flex-wrap gap-2 justify-center">
             {cats.map(c => (
               <button key={c} onClick={()=> setFilter(c)} className={`px-3 py-1.5 rounded-full text-[12px] font-bold border transition ${filter===c? "bg-[#1A1A1A] text-white border-black" : "bg-white border-black/10 text-black/60 hover:border-[#FF6B00]/30"}`}>{c}</button>
@@ -149,4 +149,3 @@ function PackPage() {
 export const Route = createFileRoute('/pack')({
   component: PackPage,
 })
-
