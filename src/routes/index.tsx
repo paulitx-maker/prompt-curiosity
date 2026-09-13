@@ -28,23 +28,21 @@ function IndexPage() {
       const url = (import.meta as any).env?.VITE_SUPABASE_URL;
       const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
       if (!url ||!anon) return;
-      // F1 V3: random backend via RPC que você criou - cada refresh 6 posts diferentes
       const res = await fetch(`${url}/rest/v1/rpc/get_random_executions`, {
         headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
         method: 'POST'
       });
       if (res.ok) {
         const data = await res.json();
-        setBiblioteca(data || []);
+        // RPC retorna colunas: id, tipo, file_name, created_at, custo_usd, modelo_usado, tema_extraido, prompt_final, user_id, device_id, post_gerado, pode_usar_publico
+        setBiblioteca((data || []).slice(0,6));
       } else {
-        // fallback se RPC falhar: busca 20 e randomiza no browser
         const res2 = await fetch(`${url}/rest/v1/executions?pode_usar_publico=eq.true&select=*&limit=20`, {
           headers: { apikey: anon, Authorization: `Bearer ${anon}` }
         });
         if (res2.ok) {
           const all = await res2.json();
-          const random6 = all.sort(() => 0.5 - Math.random()).slice(0,6);
-          setBiblioteca(random6);
+          setBiblioteca(all.sort(() => 0.5 - Math.random()).slice(0,6));
         }
       }
     } catch {}
@@ -87,7 +85,7 @@ function IndexPage() {
           <FotoPost deviceId={deviceId} />
         </div>
 
-        <div className="pb-8"><EspacoComercial posicao="home_meio" /></div>
+        <div className="pb-8"><EspacoComercial posicao="home_meio" modo="fixo" /></div>
 
         <div className="pb-8">
           <div className="flex justify-between items-baseline mb-5">
@@ -96,21 +94,17 @@ function IndexPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {biblioteca.length === 0 ? (
-              <div className="col-span-3 py-10 text-center text-[13px] text-black/40">Carregando biblioteca viva nota 4/5...</div>
+              <div className="col-span-3 py-10 text-center text-[13px] text-black/40">Carregando biblioteca viva... (se demorar, verifique se há posts com pode_usar_publico=true)</div>
             ) : biblioteca.map((item:any) => (
               <div key={item.id} className="rounded-[20px] bg-white border border-black/[0.06] p-4 flex gap-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.03)] relative overflow-hidden">
-                {/* PRIVACIDADE TOS: nunca renderiza imagem real do usuário, só 📸 placeholder + texto. Foto original (imageBase64) não é salva, só legenda. Uso só com pode_usar_publico=true e consent allowGallery */}
-                {/* Se um dia precisar mostrar imagem, aplicar blur 30%: style={{filter:'blur(12px)', opacity:0.7}} */}
-
                 <div className="w-[64px] h-[64px] rounded-[14px] flex items-center justify-center text-[26px] shrink-0 border border-black/[0.04]" style={{ background: '#FFF5EB' }}>📸</div>
                 <div className="min-w-0 flex-1 relative">
                   <div className="flex justify-between items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase">{item.categoria || 'GERAL'}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase">{item.tema_extraido || item.tipo || 'GERAL'}</span>
                     <span className="text-[10px] text-black/40">{new Date(item.created_at).toLocaleDateString('pt-BR')}</span>
                   </div>
                   <div className="relative mt-2">
-                    <p className="text-[14px] leading-[1.4] text-black/70 font-medium line-clamp-3">{(item.legenda || item.conteudo || '').slice(0,140)}</p>
-                    {/* FADE VERTICAL que você pediu: última linha esfumaçada */}
+                    <p className="text-[14px] leading-[1.4] text-black/70 font-medium line-clamp-3">{(item.post_gerado || item.prompt_final || '').slice(0,140)}</p>
                     <div className="absolute bottom-0 left-0 right-0 h-[28px] bg-gradient-to-b from-transparent to-white pointer-events-none" />
                   </div>
                 </div>
@@ -119,9 +113,8 @@ function IndexPage() {
           </div>
         </div>
 
-        {/* BANNER VIVO RANDOM - 3 separados, cada em seu lugar */}
         <div className="pb-8">
-          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Destaque vivo • random executions + vw_pack_venda • fade</h3>
+          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Destaque • nossos parceiros</h3>
           <EspacoComercial posicao="home_after_biblioteca" modo="vivo_random" />
         </div>
 
@@ -129,9 +122,8 @@ function IndexPage() {
           <PackDrawer onOpenPack={()=> window.location.href='/pack'} />
         </div>
 
-        {/* BANNERS PARCEIROS - tabela Supabase */}
         <div className="pb-8">
-          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Parceiros • banners_parceiros tabela</h3>
+          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Nossos parceiros</h3>
           <EspacoComercial posicao="home_after_packdrawer" modo="parceiros" />
         </div>
       </main>
