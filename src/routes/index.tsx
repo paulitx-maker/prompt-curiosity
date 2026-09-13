@@ -8,6 +8,7 @@ import { EspacoComercial } from '@/components/EspacoComercial';
 function IndexPage() {
   const [deviceId, setDeviceId] = React.useState<string>("web");
   const [biblioteca, setBiblioteca] = React.useState<any[]>([]);
+  const [bibliotecaCarregando, setBibliotecaCarregando] = React.useState(true);
   
   React.useEffect(() => {
     try {
@@ -45,7 +46,9 @@ function IndexPage() {
           setBiblioteca(all.sort(() => 0.5 - Math.random()).slice(0,6));
         }
       }
-    } catch {}
+    } catch {} finally {
+      setBibliotecaCarregando(false);
+    }
   })();
   }, []);
 
@@ -93,8 +96,10 @@ function IndexPage() {
             <span className="text-[13px] font-semibold text-black/50">posts públicos • Supabase real • random</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {biblioteca.length === 0 ? (
-              <div className="col-span-3 py-10 text-center text-[13px] text-black/40">Carregando biblioteca viva... (se demorar, verifique se há posts com pode_usar_publico=true)</div>
+            {bibliotecaCarregando ? (
+              <div className="col-span-3 py-10 text-center text-[13px] text-black/40">Carregando biblioteca viva...</div>
+            ) : biblioteca.length === 0 ? (
+              <div className="col-span-3 py-10 text-center text-[13px] text-black/40">Ainda não há posts públicos para mostrar. Os próximos resultados autorizados aparecem aqui.</div>
             ) : biblioteca.map((item:any) => (
               <div key={item.id} className="rounded-[20px] bg-white border border-black/[0.06] p-4 flex gap-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.03)] relative overflow-hidden">
                 <div className="w-[64px] h-[64px] rounded-[14px] flex items-center justify-center text-[26px] shrink-0 border border-black/[0.04]" style={{ background: '#FFF5EB' }}>📸</div>
