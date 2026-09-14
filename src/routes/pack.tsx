@@ -138,7 +138,7 @@ function PackPage() {
           <h1 className="text-[32px] font-extrabold tracking-tight">Brazilian Prompt Pack</h1>
           <div className="mt-3 flex items-center justify-center gap-3">
             <CreditsBadge deviceId={deviceId} usedToday={usedToday} limitToday={10} />
-            <span className="text-[13px] text-black/50">• A partir de R$4,90 • Curadoria via Supabase • {prompts.length} prompts reais</span>
+            <span className="text-[13px] text-black/50">• Mais de {prompts.length} prompts prontos. Acabou o crédito? Recarrega com um PIX e continua.</span>
           </div>
           <div className="mt-4">
             <a href="/" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-black/10 text-[12px] font-bold hover:bg-black/[0.02]">← Voltar pra gerar post</a>

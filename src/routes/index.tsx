@@ -76,8 +76,8 @@ function IndexPage() {
 
       <main className="relative z-10 max-w-[1120px] mx-auto px-5 sm:px-8">
         <div className="mx-auto max-w-[760px] pt-12 sm:pt-20 pb-10 text-center">
-          <h1 className="mt-6 text-[34px] sm:text-[52px] font-extrabold tracking-[-0.04em] leading-[0.95]">Manda uma foto, a gente cria sua propaganda</h1>
-          <p className="mt-4 text-[16px] sm:text-[18px] leading-[1.5] text-black/60 font-medium max-w-[600px] mx-auto">Você não escreve nada. Só arrasta a foto do produto e recebe legenda + arte pronta pra postar e vender.</p>
+          <h1 className="mt-6 text-[34px] sm:text-[52px] font-extrabold tracking-[-0.04em] leading-[0.95]">Manda uma foto, que a gente cria o seu post</h1>
+          <p className="mt-4 text-[16px] sm:text-[18px] leading-[1.5] text-black/60 font-medium max-w-[600px] mx-auto">Você não escreve nada. Só arrasta a sua foto do seu produto por exemplo e recebe a  legenda pronta pra postar e vender.</p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <button onClick={scrollToUpload} className="inline-flex items-center justify-center rounded-full bg-[#FF6B00] text-white px-10 py-[18px] text-[18px] sm:text-[20px] font-bold shadow-[0_12px_24px_rgba(255,107,0,0.3)] hover:brightness-105 active:scale-[0.98] transition">Mandar foto grátis →</button>
             <p className="text-[12px] sm:text-[13px] font-medium text-black/50"><span className="font-bold text-black/70">3 créditos grátis pra testar.</span> 1 crédito = 1 propaganda. Acabou? <span className="font-bold text-[#FF6B00]">1 PIX e continua vendendo.</span></p>
@@ -88,12 +88,17 @@ function IndexPage() {
           <FotoPost deviceId={deviceId} />
         </div>
 
+               <div className="pb-8">
+          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Nossos parceiros</h3>
+          <EspacoComercial posicao="home_after_biblioteca" modo="vivo_random" />
+        </div>
+       
         <div className="pb-8"><EspacoComercial posicao="home_meio" modo="fixo" /></div>
 
         <div className="pb-8">
           <div className="flex justify-between items-baseline mb-5">
             <h2 className="font-extrabold text-[22px] sm:text-[26px] tracking-tight">Biblioteca pronta de propagandas</h2>
-            <span className="text-[13px] font-semibold text-black/50">posts públicos • Supabase real • random</span>
+            <span className="text-[13px] font-semibold text-black/50">posts que nossos usuários adoraram!</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {bibliotecaCarregando ? (
@@ -118,10 +123,7 @@ function IndexPage() {
           </div>
         </div>
 
-        <div className="pb-8">
-          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Destaque • nossos parceiros</h3>
-          <EspacoComercial posicao="home_after_biblioteca" modo="vivo_random" />
-        </div>
+
 
         <div className="pb-8">
           <PackDrawer onOpenPack={()=> window.location.href='/pack'} />

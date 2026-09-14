@@ -36,8 +36,8 @@ export function PackDrawer({ onOpenPack }: PackDrawerProps) {
               <BookOpen className="w-5 h-5 text-[#FF6B00]" />
             </div>
             <div>
-              <h3 className="font-extrabold text-[18px] tracking-tight">Packs & Módulos</h3>
-              <p className="text-[12px] text-black/50 font-medium">2 prompts vivos + 1 módulo em breve (produção)</p>
+              <h3 className="font-extrabold text-[18px] tracking-tight">Prompts refinados & Módulos de conhecimento</h3>
+              <p className="text-[12px] text-black/50 font-medium">Dá uma olhada nos prompts vivos e nos módulos em desenvolvimento</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-[11px] font-bold text-black/40">
@@ -62,7 +62,7 @@ export function PackDrawer({ onOpenPack }: PackDrawerProps) {
           <div className="rounded-[14px] bg-[#1A1A1A] text-white p-3 border border-black/10">
             <p className="text-[11px] font-bold flex items-center gap-1"><Lock className="w-3 h-3" /> Em breve</p>
             <p className="text-[10px] font-bold mt-1">{modulosEmBreve[Math.floor(Math.random()*3)].titulo}</p>
-            <p className="text-[9px] text-white/50 mt-1">Mock complexo - garante trabalho pra conseguir</p>
+            <p className="text-[9px] text-white/50 mt-1">Excel, Python e mais...</p>
           </div>
         </div>
       </div>
@@ -78,9 +78,9 @@ export function PackDrawer({ onOpenPack }: PackDrawerProps) {
             <div className="rounded-[16px] bg-[#FFFBF5] border border-[#FF6B00]/20 p-4 flex gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#FF6B00] text-white flex items-center justify-center font-black">1</div>
               <div className="flex-1">
-                <p className="text-[13px] font-extrabold">Resgate o 1º módulo grátis</p>
-                <p className="text-[12px] text-black/60">Você já tem acesso. São prompts que você curou via Supabase, nota 4/5.</p>
-                <button onClick={onOpenPack} className="mt-2 text-[12px] font-bold text-[#FF6B00] hover:underline">Abrir no /pack →</button>
+                <p className="text-[13px] font-extrabold">Resgate o 1º módulo grátis em breve</p>
+                <p className="text-[12px] text-black/60"></p>
+                <button onClick={onOpenPack} className="mt-2 text-[12px] font-bold text-[#FF6B00] hover:underline">Abrir nos prompts →</button>
               </div>
               <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-[#22C55E] text-white h-fit">GRÁTIS</span>
             </div>
@@ -88,14 +88,14 @@ export function PackDrawer({ onOpenPack }: PackDrawerProps) {
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><Lock className="w-5 h-5" /></div>
               <div className="flex-1">
                 <p className="text-[13px] font-extrabold flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" /> Desbloqueia +4 módulos por R$ 4,99</p>
-                <p className="text-[12px] text-white/60">Fundamentos finanças, Arquitetura leve, Integração APIs/Webhooks - mocks complexos</p>
+                <p className="text-[12px] text-white/60">Fundamentos finanças, Arquitetura leve, Integração APIs/Webhooks e muito mais por vir!</p>
                 <div className="mt-3 flex gap-2">
                   <button className="px-4 py-2 rounded-full bg-[#FF6B00] text-white text-[12px] font-bold">PIX R$ 4,99 → libera 5 módulos</button>
                   <span className="text-[11px] text-white/40 self-center">ou continua só com grátis</span>
                 </div>
               </div>
             </div>
-            <div className="flex justify-between"><button onClick={()=> setIsOpen(false)} className="text-[12px] font-bold text-black/40">Fechar gaveta</button><button onClick={onOpenPack} className="text-[12px] font-bold text-[#FF6B00]">Ir pra /pack completo →</button></div>
+            <div className="flex justify-between"><button onClick={()=> setIsOpen(false)} className="text-[12px] font-bold text-black/40">Fechar gaveta</button><button onClick={onOpenPack} className="text-[12px] font-bold text-[#FF6B00]">Abrir nos prompts →</button></div>
           </div>
         )}
       </div>

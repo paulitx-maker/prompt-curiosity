@@ -12,7 +12,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Anti-Jegue - Manda uma foto, a gente cria sua propaganda" },
+      { title: "Anti-Jegue - Manda uma foto, que a gente cria o seu post" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
