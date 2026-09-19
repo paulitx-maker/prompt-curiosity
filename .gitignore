@@ -1,24 +1,63 @@
-node_modules/
-bun.lock
-package-lock.json
+# dependencies
+node_modules
+.pnpm-store/
+.pnpm-debug.log*
+
+# build
+dist
+.output
+.vercel
+build
+.vite
+
+# env
 .env
 .env.local
-.env.*.local
-dist/
-.output/
-.vite/
-.tanstack/
-.nitro/
-.lovable/
-Backups/
-bookmarks-antijeque.html
-vite-original.txt
-vite-orig.txt
-AGENTS.md
+.env.development.local
+.env.test.local
+.env.production.local
+
+# logs
+logs
+*.log
+npm-debug.log*
+bun.lockb
+pnpm-lock.yaml
+yarn-error.log*
+
+# OS
 .DS_Store
-src/routeTree.gen.ts
-src/routes/test.tsx
-supabase/.temp/
-_kit-ux-meta/
-tree.txt
-criar-pix-fake.tsx
+Thumbs.db
+
+# editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# temp / backup do seu projeto
+_tmp/
+_tmp
+_temp/
+tmp/
+_tmp/
+PROMPT_PADRAO_EXECUTOR_LUXO.txt.txt
+Rotinas/backupSupabase - Copia.ps1
+exec-D19-A-AUDIT-2026-09-18.json
+notion-schema-7-tabelas.json
+props-estado-atual-detalhado.json
+props-estado.json
+scripts/notion-MCP/
+
+# notion mcpbs - ignora todos mas permite o oficial
+*.mcpb
+!anti-jegue-notion-readonly-3.0.0.mcpb
+anti-jegue-notion-*
+
+# supabase local
+supabase/.branches
+supabase/.temp
+
+# misc
+*.tsbuildinfo
+coverage
