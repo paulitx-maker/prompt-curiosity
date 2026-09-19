@@ -1,0 +1,189 @@
+{
+  "lessons": {
+    "name": "Lessons Learned",
+    "pageId": "3d5e4f3b-2573-8077-ba34-e2ee22d7e5af",
+    "counts": {
+      "paragraph": 20,
+      "numbered_list_item": 13,
+      "bulleted_list_item": 19,
+      "heading_1": 1,
+      "heading_3": 1
+    },
+    "samples": [
+      {
+        "type": "paragraph",
+        "text": "1. Sempre confirmar teoria contra evidência direta (print de Network/Console/SQL) antes de aplicar fix. Diagnósticos de "
+      },
+      {
+        "type": "paragraph",
+        "text": "2. \"Erro genérico demais\" esconde causa raiz. cobraCreditoRPC transformava QUALQUER erro do Postgres em \"SEM_CREDITO\" - "
+      },
+      {
+        "type": "paragraph",
+        "text": "3. \"Está corrigido no meu editor\" != \"está no ar\". O maior tempo perdido de D10 veio de correções reais, corretas, aplic"
+      },
+      {
+        "type": "paragraph",
+        "text": "4. Ferramenta certa pro problema certo. Grep de texto (Select-String) tem pontos cegos - não pega configuração declarati"
+      },
+      {
+        "type": "paragraph",
+        "text": "5. device_id duplicado é o bug mais recorrente do projeto. Apareceu em CreditsBadge vs FotoPost, em index.tsx vs compone"
+      },
+      {
+        "type": "paragraph",
+        "text": "6. Toda tabela nova nasce com RLS fechado por padrão. Padrão adotado: ALTER TABLE ... ENABLE ROW LEVEL SECURITY + policy"
+      },
+      {
+        "type": "numbered_list_item",
+        "text": "Backup não é cópia da pasta, é bundle + zip versionado. Regra adotada após D9-D10: todo evento crítico gera backup em C:"
+      },
+      {
+        "type": "paragraph",
+        "text": "PS C:\\dev\\orquestrador-mvp> mkdir C:\\dev\\orquestrador-mvp\\Backups -Force; $DATA=Get-Date -Format \"yyyy-MM-dd_HH-mm\"\nPS C"
+      },
+      {
+        "type": "paragraph",
+        "text": "Critério de evento para backup [recorrência]:"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "Antes de qualquer ALTER TABLE / RLS / policy / RPC no Supabase"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "Depois de fechar um bug que levou >1h pra achar [como hoje SEM_CREDITO falso]"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "Antes de refatorar credits/device_id/limite"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "Todo deploy Ready que muda regra de negócio / cobrança"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "Sexta 18h - backup semanal mesmo sem evento"
+      },
+      {
+        "type": "paragraph",
+        "text": "Restauração: git clone \"C:\\dev\\orquestrador-mvp\\Backups\\orquestrador-mvp-YYYY-MM-DD_HH-mm.bundle\" orquestrador-mvp-resta"
+      },
+      {
+        "type": "paragraph",
+        "text": "Prints que provam: pasta Backups com .bundle + .zip + verify OK. Hábito de fechamento: bug resolvido só fecha após backu"
+      },
+      {
+        "type": "numbered_list_item",
+        "text": "Rotina de backup implementada pós D10:Pasta nova: C:\\dev\\orquestrador-mvp\\Rotinas\\Botão: Rotinas\\backupGitHub.ps1 + back"
+      },
+      {
+        "type": "paragraph",
+        "text": "📌 REGRA DE OURO - Full Stack\nSource of truth é git push -> GitHub prompt-curiosity -> Vercel auto-deploy.\nOs .bat são r"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "Qualquer import dinâmico de Supabase no CreditsBadge quebra build Vercel"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "localStorage.getItem(\"credits\") no useState causa SSR error"
+      }
+    ],
+    "total": 54
+  },
+  "parking": {
+    "name": "Parking Lot",
+    "pageId": "e8061e23-1d00-4406-90b6-68017c745ab2",
+    "counts": {
+      "heading_2": 8,
+      "paragraph": 30,
+      "bulleted_list_item": 1,
+      "heading_1": 1
+    },
+    "samples": [
+      {
+        "type": "heading_2",
+        "text": "1. AI Orchestrator Pessoal"
+      },
+      {
+        "type": "paragraph",
+        "text": "Visão futura de um ambiente pessoal de IA que combina modelos, ferramentas, memória/Notion, MCP, agentes especializados "
+      },
+      {
+        "type": "paragraph",
+        "text": "Evolução imaginada: Tools → MCP → Agents → Model Router → Local AI → Autonomous Workflows."
+      },
+      {
+        "type": "paragraph",
+        "text": "Decisão: não iniciar agora. Anti-Jegue tem prioridade até validar receita real."
+      },
+      {
+        "type": "paragraph",
+        "text": "Princípio: se retomado, começar pequeno, pela combinação Chat → Router → Tools → Memória, e não pelo “super agente”."
+      },
+      {
+        "type": "heading_2",
+        "text": "2. Painel operacional do Orquestrador\n"
+      },
+      {
+        "type": "paragraph",
+        "text": "Futuro painel para acompanhar custo por execução, tempo, erros, agentes utilizados, outputs editados/aprovados, abandono"
+      },
+      {
+        "type": "paragraph",
+        "text": "Objetivo: transformar o orquestrador em sistema observável e auditável."
+      },
+      {
+        "type": "paragraph",
+        "text": "Prioridade: futura."
+      },
+      {
+        "type": "heading_2",
+        "text": "3. Autonomia graduada dos agentes\n"
+      },
+      {
+        "type": "paragraph",
+        "text": "Futuro modelo de permissões para agentes baseado em risco e reversibilidade."
+      },
+      {
+        "type": "paragraph",
+        "text": "Baixo risco → execução automática."
+      },
+      {
+        "type": "paragraph",
+        "text": "Médio risco → execução com revisão."
+      },
+      {
+        "type": "paragraph",
+        "text": "Alto risco/ações externas/irreversíveis → aprovação explícita."
+      },
+      {
+        "type": "paragraph",
+        "text": "Objetivo: aumentar autonomia sem perder controle."
+      },
+      {
+        "type": "paragraph",
+        "text": "A publicação de conteúdo externo deve ter uma confirmação clara; workflows com agentes normalmente colocam aprovação ant"
+      },
+      {
+        "type": "bulleted_list_item",
+        "text": "https://www.digitalapplied.com/blog/ai-agent-orchestration-workflows-guide"
+      },
+      {
+        "type": "heading_2",
+        "text": "4. Roteador de mídia → intenção → produto → agente"
+      },
+      {
+        "type": "paragraph",
+        "text": "Router de entrada"
+      },
+      {
+        "type": "paragraph",
+        "text": "Futuro mecanismo que interpreta tipo de mídia + intenção e encaminha para o produto/agente adequado."
+      }
+    ],
+    "total": 40
+  }
+}

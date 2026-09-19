@@ -1,0 +1,39 @@
+{
+  "name": "Anti-Jegue Notion Read Contract",
+  "version": "1.0",
+  "mode": "read-only",
+  "source": "Notion",
+  "resource": "Anti-Jegue — Estado Atual",
+  "tool": "get_current_state",
+  "fields": {
+    "Task": "title",
+    "Status": "status",
+    "Data": "date",
+    "Créditos gastos": "rich_text",
+    "Créditos Manus": "rich_text",
+    "Notas": "rich_text"
+  },
+  "status_options": [
+    "Pendente",
+    "Em teste",
+    "Concluída com retrabalho",
+    "Concluída",
+    "Confirmado",
+    "Fechada",
+    "FECHADA DEFINITIVAMENTE"
+  ],
+  "operations": {
+    "allowed": [
+      "read"
+    ],
+    "forbidden": [
+      "create",
+      "update",
+      "delete"
+    ]
+  },
+  "secrets": {
+    "stored_in_repository": false,
+    "source": "local environment"
+  }
+}

@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+node_modules/
+*.log
+*.json.tmp
+ultima-escrita-verificada.json
+estado-atual-payload.json

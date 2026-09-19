@@ -1,0 +1,363 @@
+[
+  {
+    "object": "data_source",
+    "id": "1e6e4f3b-2573-8213-ae8a-87721941432b",
+    "title": "PIPELINE",
+    "properties": {
+      "Possiveis especialistas": {
+        "type": "rich_text"
+      },
+      "Descrição": {
+        "type": "rich_text"
+      },
+      "O que ganha (Mais de uma opção)": {
+        "type": "status",
+        "options": [
+          "Combinaçao de todos",
+          "Exposição+Recorrente",
+          "Audiencia",
+          "API/Créditos",
+          "Dinheiro/Patrocínio",
+          "Dinheiro+Exposição",
+          "Dinheiro",
+          "Créditos na ferramenta",
+          "Não iniciado",
+          "Em andamento",
+          "Vazio"
+        ]
+      },
+      "O que ganha": {
+        "type": "status",
+        "options": [
+          "Combinaçao de todos",
+          "Exposição+Recorrente",
+          "Audiencia",
+          "API/Créditos",
+          "Dinheiro/Patrocínio",
+          "Dinheiro+Exposição",
+          "Dinheiro",
+          "Créditos na ferramenta",
+          "Não iniciado",
+          "Em andamento",
+          "Done"
+        ]
+      },
+      "Prioridade": {
+        "type": "rich_text"
+      },
+      "Tipo (1)": {
+        "type": "status",
+        "options": [
+          "Strategic Partner",
+          "Banner",
+          "Cross-promotion",
+          "Integration",
+          "Sponsor",
+          "Creator",
+          "Affiliate",
+          "Referral",
+          "Não iniciado",
+          "Em andamento",
+          "Vazio"
+        ]
+      },
+      "Executor": {
+        "type": "select",
+        "options": [
+          "MANUS",
+          "EU + META AI",
+          "A definir",
+          "EU",
+          "EU + MANUS",
+          "PRODUCT"
+        ]
+      },
+      "Agente": {
+        "type": "people"
+      },
+      "Tipo": {
+        "type": "status",
+        "options": [
+          "Strategic Partner",
+          "Banner",
+          "Cross-promotion",
+          "Integration",
+          "Sponsor",
+          "Creator",
+          "Affiliate",
+          "Referral",
+          "Não iniciado",
+          "Em andamento",
+          "Done",
+          "melhoria",
+          "UX",
+          "GTM",
+          "produto",
+          "bug",
+          "monetização",
+          "arquitetura",
+          "estratégia",
+          "parceria",
+          "negócio",
+          "conteúdo",
+          "segurança",
+          "processo"
+        ]
+      },
+      "Status": {
+        "type": "select",
+        "options": [
+          "Testing",
+          "Ready",
+          "Done",
+          "Discovery",
+          "Parking"
+        ]
+      },
+      "Prazo": {
+        "type": "date"
+      },
+      "Descricao": {
+        "type": "rich_text"
+      },
+      "Atualizada em": {
+        "type": "last_edited_time"
+      },
+      "Origem": {
+        "type": "select",
+        "options": [
+          "relacionamento",
+          "estratégia",
+          "teste",
+          "Histórico",
+          "Histórico UX",
+          "Histórico / UX",
+          "Histórico / estratégia",
+          "ideia"
+        ]
+      },
+      "Proxima acao": {
+        "type": "rich_text"
+      },
+      "Possíveis especialistas": {
+        "type": "status",
+        "options": [
+          "UX / FRONTEND",
+          "CTO / ARCHITECTURE",
+          "PRODUCT / PM",
+          "CFO / ECONOMICS",
+          "CMO / GROWTH",
+          "QA / RELEASE",
+          "Não iniciado"
+        ]
+      },
+      "Próxima ação": {
+        "type": "select",
+        "options": [
+          "Feito",
+          "implementar",
+          "testar",
+          "estudar",
+          "pesquisar parceiros",
+          "continuar conversa",
+          "mapear SQL",
+          "validar",
+          "desenhar funil",
+          "pesquisar",
+          "catalogar",
+          "organizar",
+          "discovery Manus",
+          "documentar",
+          "decidir"
+        ]
+      },
+      "Nível de esforço": {
+        "type": "select",
+        "options": [
+          "Pequeno",
+          "Média",
+          "Grande"
+        ]
+      },
+      "Banner no site/Parceria": {
+        "type": "multi_select",
+        "options": [
+          "parceria fechada",
+          "Hipótese",
+          "Sim",
+          "Não"
+        ]
+      },
+      "Item": {
+        "type": "title"
+      }
+    }
+  },
+  {
+    "object": "data_source",
+    "id": "f8fc87b2-4214-45a8-a400-56465d89398b",
+    "title": "Anti-Jegue — Estado Atual",
+    "properties": {
+      "Notas": {
+        "type": "rich_text"
+      },
+      "Status": {
+        "type": "status",
+        "options": [
+          "Pendente",
+          "Em teste",
+          "Concluída com retrabalho",
+          "Concluída",
+          "Confirmado",
+          "Fechada",
+          "FECHADA DEFINITIVAMENTE"
+        ]
+      },
+      "Data": {
+        "type": "date"
+      },
+      "Créditos gastos": {
+        "type": "rich_text"
+      },
+      "Créditos Manus": {
+        "type": "rich_text"
+      },
+      "Task": {
+        "type": "title"
+      }
+    }
+  },
+  {
+    "object": "data_source",
+    "id": "3dbe4f3b-2573-807d-be6c-000b22d49bdf",
+    "title": "AI Partner Ecosystem",
+    "properties": {
+      "Descrição": {
+        "type": "rich_text"
+      },
+      "O que ganha (Mais de uma opção)": {
+        "type": "status",
+        "options": [
+          "Combinaçao de todos",
+          "Exposição+Recorrente",
+          "Audiencia",
+          "API/Créditos",
+          "Dinheiro/Patrocínio",
+          "Dinheiro+Exposição",
+          "Dinheiro",
+          "Créditos na ferramenta",
+          "Não iniciado",
+          "Em andamento",
+          "Vazio"
+        ]
+      },
+      "O que ganha": {
+        "type": "status",
+        "options": [
+          "Combinaçao de todos",
+          "Exposição+Recorrente",
+          "Audiencia",
+          "API/Créditos",
+          "Dinheiro/Patrocínio",
+          "Dinheiro+Exposição",
+          "Dinheiro",
+          "Créditos na ferramenta",
+          "Não iniciado",
+          "Em andamento",
+          "Done"
+        ]
+      },
+      "Tipo de tarefa": {
+        "type": "multi_select",
+        "options": [
+          "🐞 Bug",
+          "💬 Solicitação de recurso",
+          "💅 Aperfeiçoar"
+        ]
+      },
+      "Tipo (1)": {
+        "type": "status",
+        "options": [
+          "Strategic Partner",
+          "Banner",
+          "Cross-promotion",
+          "Integration",
+          "Sponsor",
+          "Creator",
+          "Affiliate",
+          "Referral",
+          "Não iniciado",
+          "Em andamento",
+          "Vazio"
+        ]
+      },
+      "Agente": {
+        "type": "people"
+      },
+      "Tipo": {
+        "type": "status",
+        "options": [
+          "Strategic Partner",
+          "Banner",
+          "Cross-promotion",
+          "Integration",
+          "Sponsor",
+          "Creator",
+          "Affiliate",
+          "Referral",
+          "Não iniciado",
+          "Em andamento",
+          "Done"
+        ]
+      },
+      "Prazo": {
+        "type": "date"
+      },
+      "Atualizada em": {
+        "type": "last_edited_time"
+      },
+      "Prioridade": {
+        "type": "select",
+        "options": [
+          "Alta",
+          "Média",
+          "Baixa"
+        ]
+      },
+      "Possíveis especialistas": {
+        "type": "status",
+        "options": [
+          "UX / FRONTEND",
+          "CTO / ARCHITECTURE",
+          "PRODUCT / PM",
+          "CFO / ECONOMICS",
+          "CMO / GROWTH",
+          "QA / RELEASE",
+          "Não iniciado",
+          "Em andamento",
+          "TODOS"
+        ]
+      },
+      "Nível de esforço": {
+        "type": "select",
+        "options": [
+          "Pequeno",
+          "Média",
+          "Grande"
+        ]
+      },
+      "Banner no site/Parceria": {
+        "type": "multi_select",
+        "options": [
+          "parceria fechada",
+          "Hipótese",
+          "Sim",
+          "Não"
+        ]
+      },
+      "Parceiro": {
+        "type": "title"
+      }
+    }
+  }
+]

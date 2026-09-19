@@ -70,3 +70,16 @@ Quando usar: HD queimou, deletou tudo, ou quer inspecionar backup antigo com seg
 Problema: `.output/` estava trackeado, `.gitignore` com `$node_modules/` e `Rotinas/` dentro de `Backups/` (não ia pro GitHub).
 Solução: `git rm -r --cached .output/`, corrigir `.gitignore` para `node_modules/` e `supabase/.temp/`, mover `Rotinas/` para `C:\dev\orquestrador-mvp\Rotinas\` na raiz.
 Estado final: `git status` clean.
+
+Rotinas / rotina_diaria.bat
+O que faz:
+rotina_diaria.bat é a rotina de consolidação diária do Orquestrador MVP. Ele mora em C:\dev\orquestrador-mvp\Rotinas\ junto com backupSupabase.ps1 e backupGitHub.bat, mas o ROOT dele é C:\dev\orquestrador-mvp (pai de Rotinas).
+
+Fluxo em ordem, sempre com conferência ANTES de operar:
+
+Calcula ROOT automaticamente: BAT_DIR=%~dp0 = Rotinas\, ROOT=.. = orquestrador-mvp. Isso permite deixar o .bat em Rotinas\ sem quebrar paths.
+Cartão de ponto .last_sync: arquivo txt simples com 1 linha 2026-09-19 em \_kit-ux-meta\execucoes\custo\evidencia\data\.last_sync. Não é CSV. Se TODAY == LAST, faz SKIP e não executa nada (idempotência local).
+Conferência no banco ANTES: roda SELECT count FROM custo_ia WHERE date >= TODAY via SERVICE_ROLE pra saber quantas linhas já estão salvas pro dia. Só log, não bloqueia.
+Executa daily-capture.cjs: caminho real scripts\notion-MCP\scripts\daily-capture.cjs (V4 DINAMICA, limit 50). Salva JSON/MD em exec-2026-09-19-daily-snapshot\evidencia\ + cataloga em catalogo\execucoes.csv. Se já existe DAILY-2026-09-19, faz já existe — pulando (idempotência do catalogo).
+Executa openrouter_cost_sync.py: usa miniconda3\python.exe + OPENROUTER_MANAGEMENT_KEY + VITE_SUPABASE_URL + SERVICE_ROLE. Gera historico_completo.csv (20 grupos) e custo_por_evento.csv (57 eventos, 12828 bytes) + upsert em public.custo_ia com UNIQUE INDEX (date,model,provider_name) pra não duplicar.
+Bate ponto: se ambos passos deram errorlevel 0, grava TODAY em .last_sync + log em rotina.log.

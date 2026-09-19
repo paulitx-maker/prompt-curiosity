@@ -12,6 +12,7 @@ import { useTracking } from "@/hooks/use-tracking";
 type Plataforma = "instagram" | "linkedin" | "whatsapp";
 type Tom = "vendas" | "informativo" | "engracado";
 type ManterTexto = "manter" | "reescrever";
+type PostVersion = { id: number; content: string; variety: number; label: string; executionId?: string | null };
 
 async function compressAndToBase64(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
@@ -73,12 +74,13 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
   const [erro, setErro] = useState<string | null>(null);
   const [post, setPost] = useState<string | null>(null);
   const [executionId, setExecutionId] = useState<string | null>(null);
+  const [versions, setVersions] = useState<PostVersion[]>([]);
   const { track } = useTracking();
 
   const reset = () => {
     setStage(1); setFile(null); setPreviewUrl(null); setBlocked(null);
     setPlataforma(null); setTom(null); setManterTexto(null);
-    setErro(null); setPost(null); setExecutionId(null);
+    setErro(null); setPost(null); setExecutionId(null); setVersions([]);
   };
 
   const handleFile = async (picked: File) => {
@@ -91,24 +93,33 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
     track?.("foto_selecionada");
   };
 
-  const submit = async () => {
+  const submit = async (varietyBoost = 0) => {
     if (!file ||!plataforma ||!tom ||!manterTexto) return;
     setLoading(true); setErro(null); setStage(3);
     try {
       const b64 = await compressAndToBase64(file);
-      const res: any = await run({ data: { imageBase64: b64, fileBase64: b64, mimeType: "image/jpeg", fileName: file.name, deviceId, answers: { plataforma, tom, manterTexto } } });
+      const isVariacao = varietyBoost > 0;
+      const versaoAnterior = versions[versions.length - 1]?.content.slice(0, 500);
+      const res: any = await run({ data: { imageBase64: b64, fileBase64: b64, mimeType: "image/jpeg", fileName: file.name, deviceId, answers: { plataforma, tom, manterTexto, ...(isVariacao ? { isVariacao: true, variedade: varietyBoost, versaoAnterior } : {}) } } });
       if (!res.ok) {
-        if (res.message?.includes("SEM_CREDITO") || res.message?.includes("LIMITE")) { window.dispatchEvent(new Event("abrir-paywall")); setStage(2); return; }
+        if (res.message?.includes("SEM_CREDITO") || res.message?.includes("LIMITE")) { window.dispatchEvent(new Event("abrir-paywall")); if (!isVariacao) setStage(2); return; }
         throw new Error(res.message);
       }
-      setPost(res.post || res.post_gerado);
+      const content = res.post || res.post_gerado;
+      setPost(content);
       setExecutionId(res.executionId ?? null);
+      setVersions((prev) => [...prev, { id: Date.now(), content, variety: varietyBoost, label: prev.length === 0 ? "Original" : `Variação ${prev.length}`, executionId: res.executionId ?? null }]);
       window.dispatchEvent(new Event("credits-updated"));
-      window.dispatchEvent(new CustomEvent("post-gerado", { detail: res.post || res.post_gerado }));
+      window.dispatchEvent(new CustomEvent("post-gerado", { detail: content }));
     } catch (e:any) {
-      if(e.message?.includes("SEM_CREDITO")) { window.dispatchEvent(new Event("abrir-paywall")); setStage(2); }
+      if(e.message?.includes("SEM_CREDITO")) { window.dispatchEvent(new Event("abrir-paywall")); if (versions.length === 0) setStage(2); }
       else setErro(e.message || "Erro");
     } finally { setLoading(false); }
+  };
+
+  const handleVariacao = () => {
+    if (loading || versions.length === 0) return;
+    submit(versions.length === 1 ? 0.15 : 0.5);
   };
 
   const canSubmit = plataforma && tom && manterTexto;
@@ -212,7 +223,7 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
               <p className="text-[12px] text-black/50">Legenda + arte pronta em 10 seg</p>
             </div>
           )}
-          {post && <ResultCard title="Sua propaganda tá pronta!" content={post} />}
+          {post && <ResultCard title="Sua propaganda tá pronta!" content={post} onGenerateVariation={handleVariacao} variationLoading={loading} />}
           {executionId && <FeedbackBar executionId={executionId} />}
           {erro && <div className="text-[#E53935] text-sm bg-red-50 border border-red-200 rounded-xl p-3">{erro}</div>}
           {post && (
@@ -225,4 +236,3 @@ export function FotoPost({ deviceId }: { deviceId: string }) {
     </div>
   );
 }
-

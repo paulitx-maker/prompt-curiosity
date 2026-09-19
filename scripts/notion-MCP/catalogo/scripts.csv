@@ -1,0 +1,8 @@
+arquivo,funcao,canonico,faz_escrita,substitui,hash_mcpb,observacao
+capture-v3-fix.cjs,discover,sim,nao,,0e0daf...,detecta IDs duplicados - manter
+get-only-parking-lessons-v2.cjs,discover,sim,nao,get-only-parking-lessons.cjs,,prioriza NEW com Atualizado em
+check-last-row-v2.cjs,validate,sim,nao,check-last-row.cjs,,schema V3 Item|Notas|Data|Atualizado em
+transform-to-datasource-v3-simple.cjs,migrate,sim,sim,transform-to-datasource-v2.cjs,,migra page->database schema simples
+"fix-v3.cjs,release,sim,nao,,,""monta manifest V3 a partir do .env"""
+"anti-jegue-notion-readonly-3.0.0.mcpb,dist,sim,nao,V1/V2,0e0daf...,""3.1MB/9.9MB 2214 files - canonico"""
+"daily-capture.cjs,daily-snapshot,sim,nao,,,""captura diaria 00:00 READ-ONLY 5 bases -> _kit-ux-meta/execucoes"""

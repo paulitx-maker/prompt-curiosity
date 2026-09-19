@@ -109,7 +109,7 @@ export function PaywallBottomSheet() {
             <button onClick={() => navigator.clipboard.writeText(pix.qr_code || "")} className="mt-4 w-full rounded-xl bg-[#00E5FF] py-3 font-bold text-black">
               Copiar código PIX
             </button>
-            <p className="mt-2 text-[10px] text-zinc-400 text-center">MAX 400 créditos total • preço preco_centavos/100 com vírgula • 60/R$12,99 inativo=false não aparece</p>
+            <p className="mt-2 text-[10px] text-zinc-400 text-center"></p>
             <button onClick={() => { setShowPix(false); setOpen(false) }} className="mt-3 w-full text-sm text-zinc-500">Fechar</button>
           </div>
         </div>

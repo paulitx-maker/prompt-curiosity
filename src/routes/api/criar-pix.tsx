@@ -3,11 +3,12 @@ import { MercadoPagoConfig, Payment } from 'mercadopago'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
+// D21 FIX - 2 pacotes reais do Supabase: 10=R$1,99 e 30=R$4,99 DESTAQUE
 const TABELA_PRECOS: Record<string, { valor_brl: number, qtd: number }> = {
-  '10': { valor_brl: 1.99, qtd: 10 },
-  '30': { valor_brl: 4.99, qtd: 30 },
-  'pack_10': { valor_brl: 1.99, qtd: 10 },
-  'pack_30': { valor_brl: 4.99, qtd: 30 },
+  '10': { valor_brl: 1.99, qtd: 10 }, // 10 créditos R$1,99 - id 11e8e898...
+  '30': { valor_brl: 4.99, qtd: 30 }, // 30 créditos R$4,99 DESTAQUE - id 3bcd99ce...
+  'pack_10': { valor_brl: 1.99, qtd: 10 }, // alias compatibilidade frontend antigo
+  'pack_30': { valor_brl: 4.99, qtd: 30 }, // alias compatibilidade frontend antigo
 }
 
 export const Route = createFileRoute('/api/criar-pix')({
@@ -25,13 +26,13 @@ export const Route = createFileRoute('/api/criar-pix')({
           const mpToken = env.MP_ACCESS_TOKEN
           if (!mpToken?.startsWith('APP_USR-')) return Response.json({ error: 'Token MP não é produção', correlation_id }, { status: 500 })
 
-          // valida pacote contra pacotes_credito ativo=true (segurança)
+          // valida pacote contra pacotes_credito ativo=true - garante 10 e 30
           let pack = (TABELA_PRECOS[pack_id] || TABELA_PRECOS['10']) as any
           try {
-            const { data: pkg } = await supabase.from('pacotes_credito').select('*').eq('id', pack_id).eq('ativo', true).maybeSingle()
-              || await supabase.from('pacotes_credito').select('*').eq('pack_id', pack_id).eq('ativo', true).maybeSingle() as any
-            if(pkg){
-              pack = { valor_brl: (pkg as any).preco_centavos ? (pkg as any).preco_centavos/100 : (pkg as any).valor_brl, qtd: (pkg as any).qtd_creditos }
+            const { data: pkg } = await supabase.from('pacotes_credito').select('preco_centavos,creditos').eq('id', pack_id).eq('ativo', true).maybeSingle()
+            if (pkg) {
+              // preco_centavos/100 com vírgula - converte pra BRL
+              pack = { valor_brl: (pkg as any).preco_centavos / 100, qtd: (pkg as any).creditos }
             }
           } catch {}
 
@@ -39,11 +40,9 @@ export const Route = createFileRoute('/api/criar-pix')({
 
           // LIMITE MAX 400 créditos total - checa users.credits + qtd
           const { data: user } = await supabase.from('users').select('credits').eq('device_id', device_id).maybeSingle() as any
-          if(user && (user.credits + qtd) > 400){
+          if (user && (user.credits + qtd) > 400) {
             return Response.json({ error: 'MAX_400', credits: user.credits, max: 400, correlation_id }, { status: 400 })
           }
-
-          console.log(`[CRIAR-PIX][${correlation_id}][${device_id}] fase=CRIADO pack=${pack_id} valor=${valor_brl} qtd=${qtd}`)
 
           const txid = `pix_${device_id.slice(0,8)}_${Date.now()}_${correlation_id.slice(0,8)}`
 
@@ -62,8 +61,6 @@ export const Route = createFileRoute('/api/criar-pix')({
             ? `${baseUrl}/api/webhook-pix?x-vercel-protection-bypass=${bypass}`
             : `${baseUrl}/api/webhook-pix`
 
-          console.log(`[CRIAR-PIX][${correlation_id}] url=${notification_url}`)
-
           const result = await payment.create({
             body: {
               transaction_amount: valor_brl,
@@ -81,12 +78,10 @@ export const Route = createFileRoute('/api/criar-pix')({
           } as any).eq('correlation_id', correlation_id)
 
           const pixData = (result as any).point_of_interaction?.transaction_data
-          console.log(`[CRIAR-PIX][${correlation_id}] fase=MP_CRIADO mpId=${result.id}`)
           return Response.json({ id: result.id, txid, correlation_id, qr_code: pixData?.qr_code, qr_code_base64: pixData?.qr_code_base64, valor_brl, qtd_creditos: qtd })
         } catch (e: any) {
-          console.error(`[CRIAR-PIX][${correlation_id}] fase=FALHA_MP`, e.message)
           try {
-            const supa = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+            const supa = createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_SERVICE_ROLE_KEY']!)
             await supa.from('pagamentos_pix').update({ fase: 'FALHA_MP', error_log: e.message, updated_at: new Date().toISOString() } as any).eq('correlation_id', correlation_id)
           } catch {}
           return Response.json({ error: e.message, correlation_id }, { status: 500 })
@@ -95,4 +90,3 @@ export const Route = createFileRoute('/api/criar-pix')({
     },
   },
 })
-

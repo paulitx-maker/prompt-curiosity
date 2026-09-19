@@ -1,0 +1,124 @@
+{
+  "id": "f8fc87b2-4214-45a8-a400-56465d89398b",
+  "title": "Anti-Jegue — Estado Atual",
+  "object": "data_source",
+  "properties": {
+    "Notas": {
+      "id": "GKGK",
+      "name": "Notas",
+      "description": null,
+      "type": "rich_text",
+      "rich_text": {}
+    },
+    "Status": {
+      "id": "H%5C%5CA",
+      "name": "Status",
+      "description": "",
+      "type": "status",
+      "status": {
+        "options": [
+          {
+            "id": "esH^",
+            "name": "Pendente",
+            "color": "red",
+            "description": ""
+          },
+          {
+            "id": "lbyi",
+            "name": "Em teste",
+            "color": "yellow",
+            "description": ""
+          },
+          {
+            "id": ">SfA",
+            "name": "Concluída com retrabalho",
+            "color": "orange",
+            "description": ""
+          },
+          {
+            "id": "[SM_",
+            "name": "Concluída",
+            "color": "green",
+            "description": ""
+          },
+          {
+            "id": "pVJn",
+            "name": "Confirmado",
+            "color": "blue",
+            "description": ""
+          },
+          {
+            "id": "FZS:",
+            "name": "Fechada",
+            "color": "purple",
+            "description": ""
+          },
+          {
+            "id": "L;BL",
+            "name": "FECHADA DEFINITIVAMENTE",
+            "color": "purple",
+            "description": ""
+          }
+        ],
+        "groups": [
+          {
+            "id": "sll>",
+            "name": "To-do",
+            "color": "default",
+            "option_ids": [
+              "esH^"
+            ]
+          },
+          {
+            "id": "VZzC",
+            "name": "In progress",
+            "color": "default",
+            "option_ids": [
+              "lbyi",
+              ">SfA"
+            ]
+          },
+          {
+            "id": "DxqX",
+            "name": "Complete",
+            "color": "default",
+            "option_ids": [
+              "[SM_",
+              "pVJn",
+              "FZS:",
+              "L;BL"
+            ]
+          }
+        ]
+      }
+    },
+    "Data": {
+      "id": "Np_M",
+      "name": "Data",
+      "description": null,
+      "type": "date",
+      "date": {}
+    },
+    "Créditos gastos": {
+      "id": "YaKg",
+      "name": "Créditos gastos",
+      "description": null,
+      "type": "rich_text",
+      "rich_text": {}
+    },
+    "Créditos Manus": {
+      "id": "lDf%3F",
+      "name": "Créditos Manus",
+      "description": null,
+      "type": "rich_text",
+      "rich_text": {}
+    },
+    "Task": {
+      "id": "title",
+      "name": "Task",
+      "description": null,
+      "type": "title",
+      "title": {}
+    }
+  }
+}

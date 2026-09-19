@@ -74,7 +74,7 @@ export async function updateConsent(executionId: string, podeUsar: boolean) {
   return true;
 }
 
-async function callOpenRouter(prompt: string, imageBase64?: string) {
+async function callOpenRouter(prompt: string, imageBase64?: string, temperature?: number) {
   const env = process.env as any;
   const apiKey = env['OPENROUTER_API_KEY'] || env['VITE_OPENROUTER_API_KEY'];
   if (!apiKey) throw new Error("OPENROUTER_API_KEY missing no.env");
@@ -84,7 +84,7 @@ async function callOpenRouter(prompt: string, imageBase64?: string) {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json", "HTTP-Referer": "https://antijegue.app", "X-Title": "AntiJegue MVP" },
-    body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content }], provider: { allow_fallbacks: false } })
+    body: JSON.stringify({ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content }], ...(temperature === undefined ? {} : { temperature }), provider: { allow_fallbacks: false } })
   });
   if (!res.ok) { const t = await res.text(); console.error("OpenRouter FAIL", res.status, t); throw new Error(`AI_PROVIDER_ERROR ${res.status} ${t.slice(0,300)}`); }
   const json = await res.json();
@@ -111,8 +111,13 @@ export async function runPostImagem(data: any) {
     const { data: logRow } = await supabaseAdmin().from("charge_log").insert({ device_id: deviceId, custo: custoCobrado, tipo: "foto_post", estornado: false }).select("id").single();
     chargeLogId = logRow?.id?? null;
 
-    const prompt = `Você é copywriter anti-jegue. Crie um POST para ${data.answers.plataforma} com tom ${data.answers.tom}. Objetivo: ${data.answers.manterTexto}. Regras: sem jargão, frases curtas, CTA no final. Arquivo: ${data.fileName}. Responda só o post pronto em PT-BR.`;
-    const result = await callOpenRouter(prompt, image);
+    const isVariacao = data.answers?.isVariacao === true;
+    const varietyBoost = data.answers?.variedade === 0.15 || data.answers?.variedade === 0.5 ? data.answers.variedade : undefined;
+    const previousVersion = typeof data.answers?.versaoAnterior === "string" ? data.answers.versaoAnterior.slice(0, 500) : "";
+    const prompt = isVariacao
+      ? `Você é copywriter anti-jegue. Crie uma NOVA VARIAÇÃO do post para ${data.answers.plataforma} com tom ${data.answers.tom}. Objetivo: ${data.answers.manterTexto}. Use o post anterior abaixo como contexto, mas escreva uma versão claramente diferente. Regras: sem jargão, frases curtas, CTA no final. Responda só o post pronto em PT-BR. Post anterior: ${previousVersion}`
+      : `Você é copywriter anti-jegue. Crie um POST para ${data.answers.plataforma} com tom ${data.answers.tom}. Objetivo: ${data.answers.manterTexto}. Regras: sem jargão, frases curtas, CTA no final. Arquivo: ${data.fileName}. Responda só o post pronto em PT-BR.`;
+    const result = await callOpenRouter(prompt, image, isVariacao ? varietyBoost : undefined);
 
     const custoReal = result.usage? (result.usage.prompt_tokens * 0.00000025 + result.usage.completion_tokens * 0.0000015) : custoCobrado;
     if (Math.abs(custoReal - custoCobrado) > 0.0000001) {

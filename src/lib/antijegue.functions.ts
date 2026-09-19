@@ -10,6 +10,9 @@ export interface PostImagemInput {
     plataforma: "instagram" | "linkedin" | "whatsapp";
     tom: "vendas" | "informativo" | "engracado";
     manterTexto: "manter" | "reescrever";
+    isVariacao?: boolean;
+    variedade?: 0.15 | 0.5;
+    versaoAnterior?: string;
   };
 }
 

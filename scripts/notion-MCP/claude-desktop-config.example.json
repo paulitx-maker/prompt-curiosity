@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "anti-jegue-notion-readonly": {
+      "command": "node",
+      "args": [
+        "C:\\\\dev\\\\orquestrador-mvp\\\\scripts\\\\notion-MCP\\\\server.js"
+      ]
+    }
+  }
+}

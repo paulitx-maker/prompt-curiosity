@@ -7,6 +7,8 @@ interface ResultCardProps {
   content: string;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  onGenerateVariation?: () => void;
+  variationLoading?: boolean;
 }
 
 export function ResultCard({
@@ -14,6 +16,8 @@ export function ResultCard({
   content,
   collapsible = false,
   defaultOpen = true,
+  onGenerateVariation,
+  variationLoading = false,
 }: ResultCardProps) {
   const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
@@ -55,13 +59,16 @@ export function ResultCard({
 
           {/* FIX DA CAIXA BRANCA - antes era bg-white */}
           <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent("gerar-variacao"))}
-              className="rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white dark:bg-white dark:text-black"
-            >
-              Gerar variação (1 crédito)
-            </button>
+            {onGenerateVariation && (
+              <button
+                type="button"
+                onClick={onGenerateVariation}
+                disabled={variationLoading}
+                className="rounded-full bg-black px-4 py-2.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-black"
+              >
+                Gerar variação (1 crédito)
+              </button>
+            )}
             <a
               href="/biblioteca"
               className="rounded-full border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-xs font-medium text-zinc-200 hover:bg-zinc-700"

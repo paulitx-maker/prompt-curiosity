@@ -9,7 +9,7 @@ function IndexPage() {
   const [deviceId, setDeviceId] = React.useState<string>("web");
   const [biblioteca, setBiblioteca] = React.useState<any[]>([]);
   const [bibliotecaCarregando, setBibliotecaCarregando] = React.useState(true);
-  
+
   React.useEffect(() => {
     try {
       let id = localStorage.getItem("device_id");
@@ -29,22 +29,23 @@ function IndexPage() {
       const url = (import.meta as any).env?.VITE_SUPABASE_URL;
       const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
       if (!url ||!anon) return;
-      const res = await fetch(`${url}/rest/v1/rpc/get_random_executions`, {
-        headers: { apikey: anon, Authorization: `Bearer ${anon}`, 'Content-Type': 'application/json' },
-        method: 'POST'
+      // busca 100 pra poder filtrar os textos bons (corrige seu image_e4aafd.png que tava cortado)
+      const res = await fetch(`${url}/rest/v1/public_library_view?select=id,tipo,tema_extraido,created_at,post_gerado&order=created_at.desc&limit=100`, {
+        headers: { apikey: anon, Authorization: `Bearer ${anon}` },
       });
       if (res.ok) {
         const data = await res.json();
-        // RPC retorna colunas: id, tipo, file_name, created_at, custo_usd, modelo_usado, tema_extraido, prompt_final, user_id, device_id, post_gerado, pode_usar_publico
-        setBiblioteca((data || []).slice(0,6));
-      } else {
-        const res2 = await fetch(`${url}/rest/v1/executions?pode_usar_publico=eq.true&select=*&limit=20`, {
-          headers: { apikey: anon, Authorization: `Bearer ${anon}` }
+        const bons = (data || []).filter((it:any) => {
+          const t = (it.tema_extraido || '').trim();
+          if (!t) return false;
+          const low = t.toLowerCase();
+          // remove puro plataforma
+          if (low === 'linkedin' || low === 'instagram' || low === 'whatsapp') return false;
+          // só texto real 30+ chars
+          return t.length >= 30;
         });
-        if (res2.ok) {
-          const all = await res2.json();
-          setBiblioteca(all.sort(() => 0.5 - Math.random()).slice(0,6));
-        }
+        // MOSTRA SÓ OS BONS, mesmo que sejam 2 ou 3
+        setBiblioteca(bons.slice(0,6));
       }
     } catch {} finally {
       setBibliotecaCarregando(false);
@@ -77,7 +78,7 @@ function IndexPage() {
       <main className="relative z-10 max-w-[1120px] mx-auto px-5 sm:px-8">
         <div className="mx-auto max-w-[760px] pt-12 sm:pt-20 pb-10 text-center">
           <h1 className="mt-6 text-[34px] sm:text-[52px] font-extrabold tracking-[-0.04em] leading-[0.95]">Manda uma foto, que a gente cria o seu post</h1>
-          <p className="mt-4 text-[16px] sm:text-[18px] leading-[1.5] text-black/60 font-medium max-w-[600px] mx-auto">Você não escreve nada. Só arrasta a sua foto do seu produto por exemplo e recebe a  legenda pronta pra postar e vender.</p>
+          <p className="mt-4 text-[16px] sm:text-[18px] leading-[1.5] text-black/60 font-medium max-w-[600px] mx-auto">Você não escreve nada. Só arrasta a sua foto do seu produto por exemplo e recebe a legenda pronta pra postar e vender.</p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <button onClick={scrollToUpload} className="inline-flex items-center justify-center rounded-full bg-[#FF6B00] text-white px-10 py-[18px] text-[18px] sm:text-[20px] font-bold shadow-[0_12px_24px_rgba(255,107,0,0.3)] hover:brightness-105 active:scale-[0.98] transition">Mandar foto grátis →</button>
             <p className="text-[12px] sm:text-[13px] font-medium text-black/50"><span className="font-bold text-black/70">3 créditos grátis pra testar.</span> 1 crédito = 1 propaganda. Acabou? <span className="font-bold text-[#FF6B00]">1 PIX e continua vendendo.</span></p>
@@ -88,7 +89,7 @@ function IndexPage() {
           <FotoPost deviceId={deviceId} />
         </div>
 
-               <div className="pb-8">
+        <div className="pb-8">
           <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Nossos parceiros</h3>
           <EspacoComercial posicao="home_after_biblioteca" modo="vivo_random" />
         </div>
@@ -106,24 +107,21 @@ function IndexPage() {
             ) : biblioteca.length === 0 ? (
               <div className="col-span-3 py-10 text-center text-[13px] text-black/40">Ainda não há posts públicos para mostrar. Os próximos resultados autorizados aparecem aqui.</div>
             ) : biblioteca.map((item:any) => (
-              <div key={item.id} className="rounded-[20px] bg-white border border-black/[0.06] p-4 flex gap-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.03)] relative overflow-hidden">
-                <div className="w-[64px] h-[64px] rounded-[14px] flex items-center justify-center text-[26px] shrink-0 border border-black/[0.04]" style={{ background: '#FFF5EB' }}>📸</div>
-                <div className="min-w-0 flex-1 relative">
-                  <div className="flex justify-between items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase">{item.tema_extraido || item.tipo || 'GERAL'}</span>
+              <div key={item.id} className="rounded-[20px] bg-white border border-black/[0.06] p-4 flex gap-3.5 shadow-[0_4px_18px_rgba(0,0,0,0.03)]">
+                <div className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-[14px] bg-[#FFFEF5] border border-black/[0.04] flex items-center justify-center text-[20px] shrink-0">
+                  📸
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex justify-between items-center gap-2 mb-1">
+                    <span className="px-2 py-0.5 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase tracking-widest">{item.tipo}</span>
                     <span className="text-[10px] text-black/40" suppressHydrationWarning>{item.created_at? new Date(item.created_at).toLocaleDateString('pt-BR') : ''}</span>
                   </div>
-                  <div className="relative mt-2">
-                    <p className="text-[14px] leading-[1.4] text-black/70 font-medium line-clamp-3">{(item.post_gerado || item.prompt_final || '').slice(0,140)}</p>
-                    <div className="absolute bottom-0 left-0 right-0 h-[28px] bg-gradient-to-b from-transparent to-white pointer-events-none" />
-                  </div>
+                  <p className="text-[14px] leading-[1.4] text-black/70 font-medium">{(item.tema_extraido || 'Post público indisponível.').slice(0,140)}</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
-
-
 
         <div className="pb-8">
           <PackDrawer onOpenPack={()=> window.location.href='/pack'} />
