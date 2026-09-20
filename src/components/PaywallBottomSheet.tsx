@@ -20,34 +20,38 @@ export function PaywallBottomSheet() {
     }
   }, [])
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const url = (import.meta as any).env?.VITE_SUPABASE_URL;
-        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
-        if (!url || !anon) return;
-        const res = await fetch(`${url}/rest/v1/pacotes_credito?ativo=eq.true&order=ordem.asc&select=*`, {
-          headers: { apikey: anon, Authorization: `Bearer ${anon}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          // filtra 60/R$12,99 inativo=false já filtrado por ativo=true, garante preco_centavos/100 com vírgula
-          const filtrados = data.filter((p:any)=> p.ativo && p.preco_centavos <= 1000) // max R$10
-            .map((p:any)=>({
-              ...p,
-              valor_brl: p.preco_centavos ? p.preco_centavos/100 : p.valor_brl,
-              qtd_creditos: p.qtd_creditos || p.qtd || (p.valor_brl>=4 ? 30 : 10)
-            }))
-            .slice(0,2); // só 2 pacotes: 10/R$1,99 e 30/R$4,99 destaque
-          if(filtrados.length>0) {
-            setPacotes(filtrados);
-            const destaque = filtrados.find((p:any)=>p.destaque) || filtrados[0];
-            setSelectedPack(destaque.id || destaque.pack_id || "pack_10");
-          }
+useEffect(() => {
+  (async () => {
+    try {
+      const url = (import.meta as any).env?.VITE_SUPABASE_URL;
+      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || (import.meta as any).env?.VITE_SUPABASE_KEY;
+      if (!url ||!anon) return;
+      const res = await fetch(`${url}/rest/v1/pacotes_credito?ativo=eq.true&order=ordem.asc&select=*`, {
+        headers: { apikey: anon, Authorization: `Bearer ${anon}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // tabela usa `creditos`, não `qtd_creditos`
+        const filtrados = data
+         .filter((p:any) => p.ativo && p.preco_centavos <= 1000)
+         .map((p:any) => ({
+           ...p,
+            valor_brl: p.preco_centavos? p.preco_centavos/100 : p.valor_brl,
+            creditos: p.creditos,
+            qtd_creditos: p.creditos || p.qtd_creditos || p.qtd || 10,
+            destaque:!!p.destaque
+          }))
+         .sort((a:any,b:any) => a.ordem - b.ordem)
+         .slice(0,2); // 10/R$1,99 e 30/R$4,99 destaque
+        if (filtrados.length > 0) {
+          setPacotes(filtrados);
+          const destaque = filtrados.find((p:any)=>p.destaque) || filtrados[0];
+          setSelectedPack(destaque.id || destaque.pack_id || "pack_10");
         }
-      } catch {}
-    })();
-  }, [])
+      }
+    } catch {}
+  })();
+}, [])
 
   async function handleClick(packId?: string) {
     const pack = packId || selectedPack
@@ -109,7 +113,7 @@ export function PaywallBottomSheet() {
             <button onClick={() => navigator.clipboard.writeText(pix.qr_code || "")} className="mt-4 w-full rounded-xl bg-[#00E5FF] py-3 font-bold text-black">
               Copiar código PIX
             </button>
-            <p className="mt-2 text-[10px] text-zinc-400 text-center">MAX 400 créditos total • preço preco_centavos/100 com vírgula • 60/R$12,99 inativo=false não aparece</p>
+            <p className="mt-2 text-[10px] text-zinc-400 text-center"></p>
             <button onClick={() => { setShowPix(false); setOpen(false) }} className="mt-3 w-full text-sm text-zinc-500">Fechar</button>
           </div>
         </div>
