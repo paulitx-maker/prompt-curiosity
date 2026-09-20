@@ -88,11 +88,7 @@ function IndexPage() {
           <FotoPost deviceId={deviceId} />
         </div>
 
-               <div className="pb-8">
-          <h3 className="text-[12px] font-bold uppercase tracking-widest text-black/40 mb-3">Nossos parceiros</h3>
-          <EspacoComercial posicao="home_after_biblioteca" modo="vivo_random" />
-        </div>
-       
+           
         <div className="pb-8"><EspacoComercial posicao="home_meio" modo="fixo" /></div>
 
         <div className="pb-8">
