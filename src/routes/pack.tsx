@@ -125,6 +125,24 @@ function PackPage() {
     }
   };
 
+  const getFeedbackMailto = (p: any) => {
+    const subject = `Feedback - ${p.titulo} [${p.id.slice(0,8)}]`;
+    const body = `Qual prompt você testou? ${p.titulo}
+ID: ${p.id}
+
+O que tentei fazer:
+
+Funcionou? (resolveu / melhorou / piorou / não serviu):
+
+Onde falhou:
+
+O que precisei adaptar:
+
+Economizou tempo? Quanto?
+`;
+    return `mailto:naoehgolpe@icloud.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
   const filtrados = prompts.filter(p => {
     const matchCat = filter === "Todas" || p.categoria === filter;
     const matchBusca = busca === "" || p.titulo.toLowerCase().includes(busca.toLowerCase()) || (p.prompt_preview_40 && p.prompt_preview_40.toLowerCase().includes(busca.toLowerCase()));
@@ -166,9 +184,12 @@ function PackPage() {
                 <span className="inline-flex px-2.5 py-1 rounded-full bg-[#FFF5EB] border border-[#FF6B00]/15 text-[#FF6B00] text-[10px] font-extrabold uppercase w-fit">{p.categoria}</span>
                 <h3 className="mt-3 font-extrabold text-[15px] leading-[1.3] group-hover:text-[#FF6B00] transition">{p.titulo}</h3>
                 <p className="mt-2 text-[12px] leading-[1.4] text-black/60 line-clamp-3 flex-1">{p.prompt_preview_40}...</p>
-                <div className="mt-4 flex items-center justify-between">
-                  <span className="text-[13px] font-extrabold">R$ {Number(p.preco).toFixed(2).replace('.',',')}</span>
-                  <button onClick={()=> copiar(p)} className="px-3 py-1.5 rounded-full bg-[#1A1A1A] text-white text-[11px] font-bold hover:bg-black transition">Copiar - 1 crédito</button>
+                <div className="mt-3 p-2.5 rounded-xl bg-[#FFFBF5] border border-dashed border-black/10 text-[11px] leading-[1.3]">
+                  <a href={getFeedbackMailto(p)} className="font-bold hover:text-[#FF6B00] transition">🧪 Testou este prompt?</a>
+                  <a href={getFeedbackMailto(p)} className="ml-1 underline text-black/60 hover:text-black">Enviar feedback →</a>
+                </div>
+                <div className="mt-3 flex justify-end">
+                  <button onClick={()=> copiar(p)} className="px-4 py-1.5 rounded-full bg-[#1A1A1A] text-white text-[11px] font-bold hover:bg-black transition">Copiar - 1 crédito</button>
                 </div>
               </div>
             ))}
