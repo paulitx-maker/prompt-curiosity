@@ -2,6 +2,7 @@
 node_modules
 .pnpm-store/
 .pnpm-debug.log*
+ARVORE-orquestrador-mvp
 
 # build
 dist
@@ -61,3 +62,19 @@ supabase/.temp
 # misc
 *.tsbuildinfo
 coverage
+bookmarks-antijeque.html
+
+# CASO 001 - dados sensíveis do irmão
+_kit-ux-meta/casos/*/01-dados-brutos/*
+!_kit-ux-meta/casos/*/01-dados-brutos/.gitkeep
+*.pbix
+*.xlsx
+*controle*pedidos*.pdf
+*controle*pedidos*.txt
+_kit-ux-meta/
+
+#ambiente virtual Python
+.venv/
+**/__pycache__/
+**/*.pyc
+**/Old/
